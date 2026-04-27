@@ -1,0 +1,64 @@
+body {
+    font-family: "Times New Roman", serif;
+    background: #ffffff;
+    color: #111;
+    line-height: 1.6;
+    margin: 40px;
+}
+
+.document {
+    max-width: 900px;
+    margin: auto;
+}
+
+h1, h2, h3 {
+    font-weight: bold;
+    margin-top: 1.5em;
+}
+
+h1 {
+    font-size: 28px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 22px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+p {
+    text-align: justify;
+}
+
+code {
+    background: #f5f5f5;
+    padding: 2px 4px;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 10px;
+    overflow-x: auto;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+}
+
+table, th, td {
+    border: 1px solid #444;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+
+blockquote {
+    border-left: 4px solid #999;
+    padding-left: 10px;
+    color: #555;
+}
