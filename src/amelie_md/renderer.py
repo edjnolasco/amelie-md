@@ -1,46 +1,77 @@
+from __future__ import annotations
+
 from pathlib import Path
-from markdown import Markdown
+from typing import Any
+
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markdown import Markdown
+
+from amelie_md.core.frontmatter import parse_frontmatter
+from amelie_md.core.normalizer import normalize_headings
 
 
 class AmelieRenderer:
+    """
+    Main renderer for Amelie MD.
+
+    Pipeline:
+    Markdown -> frontmatter extraction -> normalization -> HTML rendering
+    """
+
     def __init__(self, template_dir: Path, style_path: Path):
         self.template_dir = template_dir
         self.style_path = style_path
 
-        self.md = Markdown(
-            extensions=[
-                "extra",        # tablas, listas, etc.
-                "codehilite",   # syntax highlighting
-                "toc",          # tabla de contenido
-                "fenced_code",
-                "tables"
-            ]
-        )
-
         self.env = Environment(
             loader=FileSystemLoader(self.template_dir),
-            autoescape=select_autoescape(["html"])
+            autoescape=select_autoescape(["html"]),
         )
 
-    def render_markdown(self, markdown_text: str) -> str:
-        return self.md.convert(markdown_text)
+    def _create_markdown_engine(self) -> Markdown:
+        return Markdown(
+            extensions=[
+                "extra",
+                "codehilite",
+                "toc",
+                "fenced_code",
+                "tables",
+            ],
+            extension_configs={
+                "toc": {
+                    "permalink": False,
+                    "toc_depth": "1-3",
+                }
+            },
+        )
 
     def render_html(self, markdown_text: str) -> str:
-        html_body = self.render_markdown(markdown_text)
+        metadata, content = parse_frontmatter(markdown_text)
+        normalized_content = normalize_headings(content)
+
+        markdown_engine = self._create_markdown_engine()
+
+        html_body = markdown_engine.convert(normalized_content)
+        toc_html = markdown_engine.toc
 
         template = self.env.get_template("base.html")
-
-        css = Path(self.style_path).read_text(encoding="utf-8")
+        css = self.style_path.read_text(encoding="utf-8")
 
         return template.render(
+            metadata=self._normalize_metadata(metadata),
+            toc=toc_html,
             content=html_body,
-            style=css
+            style=css,
         )
 
-    def render_file(self, input_path: Path, output_path: Path):
+    def render_file(self, input_path: Path, output_path: Path) -> None:
         markdown_text = input_path.read_text(encoding="utf-8")
-
         html = self.render_html(markdown_text)
-
         output_path.write_text(html, encoding="utf-8")
+
+    def _normalize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "title": metadata.get("title") or "Documento Amelie",
+            "author": metadata.get("author") or "",
+            "date": metadata.get("date") or "",
+            "subtitle": metadata.get("subtitle") or "",
+        }
