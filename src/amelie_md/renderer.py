@@ -49,7 +49,6 @@ class AmelieRenderer:
         normalized_content = normalize_headings(content)
 
         markdown_engine = self._create_markdown_engine()
-
         html_body = markdown_engine.convert(normalized_content)
         toc_html = markdown_engine.toc
 
@@ -66,7 +65,12 @@ class AmelieRenderer:
     def render_file(self, input_path: Path, output_path: Path) -> None:
         markdown_text = input_path.read_text(encoding="utf-8")
         html = self.render_html(markdown_text)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(html, encoding="utf-8")
+
+    def render_to_html_string(self, input_path: Path) -> str:
+        markdown_text = input_path.read_text(encoding="utf-8")
+        return self.render_html(markdown_text)
 
     def _normalize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
         return {
