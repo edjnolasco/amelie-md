@@ -4,7 +4,31 @@
     <meta charset="UTF-8">
     <title>Informe Técnico de Prueba</title>
     <style>
-        body {
+        @page {
+    size: A4;
+    margin: 2.5cm;
+}
+
+@media print {
+    body {
+        margin: 0;
+    }
+
+    .cover {
+        page-break-after: always;
+    }
+
+    .toc {
+        page-break-after: always;
+    }
+
+    pre,
+    table {
+        page-break-inside: avoid;
+    }
+}
+
+body {
     font-family: "Times New Roman", serif;
     background: #ffffff;
     color: #111111;
