@@ -1,7 +1,7 @@
 ---
 title: "Readme Full"
 author: "Edwin José Nolasco"
-date: "2026-04-27"
+date: "2026-04-28"
 ---
 
 # 🇩🇴 rd-territorial-system
@@ -21,12 +21,10 @@ API REST diseñada para resolver, normalizar y consultar entidades territoriales
 
 Proveer un servicio backend robusto y escalable que permita:
 
-```text
 - Resolver nombres territoriales ambiguos
 - Normalizar estructuras administrativas
 - Soportar integraciones externas (apps, DSS, pipelines ML)
 - Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)
-```
 
 ---
 

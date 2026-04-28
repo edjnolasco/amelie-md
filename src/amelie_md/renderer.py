@@ -22,6 +22,7 @@ class AmelieRenderer:
     def __init__(self, template_dir: Path, style_path: Path):
         self.template_dir = template_dir
         self.style_path = style_path
+        self.pygments_style_path = style_path.parent / "pygments.css"
 
         self.env = Environment(
             loader=FileSystemLoader(self.template_dir),
@@ -33,7 +34,6 @@ class AmelieRenderer:
             extensions=[
                 "extra",
                 "codehilite",
-                "toc",
                 "fenced_code",
                 "tables",
                 "toc",
@@ -42,7 +42,13 @@ class AmelieRenderer:
                 "toc": {
                     "permalink": False,
                     "toc_depth": "1-2",
-                }
+                },
+                "codehilite": {
+                    "guess_lang": False,
+                    "use_pygments": True,
+                    "noclasses": False,
+                    "css_class": "codehilite",
+                },
             },
         )
 
@@ -56,6 +62,9 @@ class AmelieRenderer:
 
         template = self.env.get_template("base.html")
         css = self.style_path.read_text(encoding="utf-8")
+
+        if self.pygments_style_path.exists():
+            css += "\n\n" + self.pygments_style_path.read_text(encoding="utf-8")
 
         return template.render(
             metadata=infer_metadata(metadata),
