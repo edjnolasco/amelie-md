@@ -28,6 +28,10 @@ def build(
     input_file: str = typer.Argument(..., help="Markdown file"),
     to: str = typer.Option("html", help="Output format: html or pdf"),
     output: str | None = typer.Option(None, help="Output file"),
+    style: str = typer.Option(
+        "academic",
+        help="Document style: academic | report | readme",
+    ),
 ) -> None:
     """
     Build a technical document from Markdown into a target format.
@@ -35,17 +39,23 @@ def build(
 
     input_path = _validate_input_file(input_file)
     output_format = to.lower().strip()
+    style_name = style.lower().strip()
 
     if output_format not in {"html", "pdf"}:
         typer.echo("❌ Supported formats: html, pdf")
         raise typer.Exit(code=1)
 
-    renderer = _create_renderer()
+    if style_name not in {"academic", "report", "readme"}:
+        typer.echo("❌ Supported styles: academic, report, readme")
+        raise typer.Exit(code=1)
+
+    renderer = _create_renderer(style_name)
 
     if output_format == "html":
         output_path = Path(output) if output else input_path.with_suffix(".html")
         renderer.render_file(input_path, output_path)
         typer.echo(f"✅ Built HTML: {output_path}")
+        typer.echo(f"ℹ️ Style: {style_name}")
         return
 
     output_path = Path(output) if output else input_path.with_suffix(".pdf")
@@ -58,6 +68,7 @@ def build(
     )
 
     typer.echo(f"✅ Built PDF: {output_path}")
+    typer.echo(f"ℹ️ Style: {style_name}")
 
 
 @app.command()
@@ -130,12 +141,17 @@ def _validate_input_file(input_file: str) -> Path:
     return input_path
 
 
-def _create_renderer() -> AmelieRenderer:
+def _create_renderer(style_name: str = "academic") -> AmelieRenderer:
     base_dir = Path(__file__).parent
+    style_path = base_dir / "styles" / f"{style_name}.css"
+
+    if not style_path.exists():
+        typer.echo(f"❌ Style not found: {style_name}")
+        raise typer.Exit(code=1)
 
     return AmelieRenderer(
         template_dir=base_dir / "templates",
-        style_path=base_dir / "styles" / "academic.css",
+        style_path=style_path,
     )
 
 
