@@ -9,6 +9,7 @@ from markdown import Markdown
 from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.normalizer import normalize_headings
 
+from amelie_md.core.metadata import infer_metadata
 
 class AmelieRenderer:
     """
@@ -39,7 +40,7 @@ class AmelieRenderer:
             extension_configs={
                 "toc": {
                     "permalink": False,
-                    "toc_depth": "1-3",
+                    "toc_depth": "1-2",
                 }
             },
         )
@@ -56,7 +57,7 @@ class AmelieRenderer:
         css = self.style_path.read_text(encoding="utf-8")
 
         return template.render(
-            metadata=self._normalize_metadata(metadata),
+            metadata=infer_metadata(metadata),
             toc=toc_html,
             content=html_body,
             style=css,

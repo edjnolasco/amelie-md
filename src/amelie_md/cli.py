@@ -4,8 +4,11 @@ from pathlib import Path
 
 import typer
 
+from amelie_md.core.markdown_normalizer import normalize_markdown
+from amelie_md.core.validator import validate_markdown
 from amelie_md.exporters.pdf import PdfExporter
 from amelie_md.renderer import AmelieRenderer
+from amelie_md.core.encoding import read_text_with_encoding_detection
 
 app = typer.Typer(
     help="Amelie MD - Document normalizer and publisher",
@@ -30,28 +33,14 @@ def build(
     Build a technical document from Markdown into a target format.
     """
 
-    input_path = Path(input_file)
-
-    if not input_path.exists():
-        typer.echo("❌ Input file not found")
-        raise typer.Exit(code=1)
-
-    if input_path.suffix.lower() != ".md":
-        typer.echo("❌ Input file must be a Markdown file (.md)")
-        raise typer.Exit(code=1)
-
+    input_path = _validate_input_file(input_file)
     output_format = to.lower().strip()
 
     if output_format not in {"html", "pdf"}:
         typer.echo("❌ Supported formats: html, pdf")
         raise typer.Exit(code=1)
 
-    base_dir = Path(__file__).parent
-
-    renderer = AmelieRenderer(
-        template_dir=base_dir / "templates",
-        style_path=base_dir / "styles" / "academic.css",
-    )
+    renderer = _create_renderer()
 
     if output_format == "html":
         output_path = Path(output) if output else input_path.with_suffix(".html")
@@ -69,6 +58,85 @@ def build(
     )
 
     typer.echo(f"✅ Built PDF: {output_path}")
+
+
+@app.command()
+def validate(
+    input_file: str = typer.Argument(..., help="Markdown file"),
+    profile: str = typer.Option(
+        "technical",
+        help="Validation profile: technical | readme | academic",
+    ),
+) -> None:
+    """
+    Validate Markdown structure and metadata.
+    """
+
+    input_path = _validate_input_file(input_file)
+    markdown_text = input_path.read_text(encoding="utf-8")
+
+    report = validate_markdown(markdown_text, profile=profile)
+
+    if not report.issues:
+        typer.echo("✅ No validation issues found.")
+        return
+
+    for issue in report.issues:
+        icon = "❌" if issue.severity == "error" else "⚠️"
+        typer.echo(f"{icon} [{issue.code}] {issue.message}")
+
+    if report.has_errors:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def normalize(
+    input_file: str = typer.Argument(..., help="Markdown file"),
+    output: str | None = typer.Option(None, help="Output Markdown file"),
+) -> None:
+    """
+    Normalize a Markdown file and write a clean Markdown output.
+    """
+
+    input_path = _validate_input_file(input_file)
+    decoded = read_text_with_encoding_detection(input_path)
+
+    normalized = normalize_markdown(
+        decoded.text,
+        input_path=input_path,
+        repair_encoding=True,
+    )
+
+    output_path = Path(output) if output else input_path.with_name(f"{input_path.stem}_clean.md")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(normalized, encoding="utf-8")
+
+    typer.echo(f"✅ Normalized Markdown: {output_path}")
+    typer.echo(f"ℹ️ Detected input encoding: {decoded.encoding}")
+    typer.echo("✔ Converted to UTF-8")
+
+
+def _validate_input_file(input_file: str) -> Path:
+    input_path = Path(input_file)
+
+    if not input_path.exists():
+        typer.echo("❌ Input file not found")
+        raise typer.Exit(code=1)
+
+    if input_path.suffix.lower() != ".md":
+        typer.echo("❌ Input file must be a Markdown file (.md)")
+        raise typer.Exit(code=1)
+
+    return input_path
+
+
+def _create_renderer() -> AmelieRenderer:
+    base_dir = Path(__file__).parent
+
+    return AmelieRenderer(
+        template_dir=base_dir / "templates",
+        style_path=base_dir / "styles" / "academic.css",
+    )
 
 
 if __name__ == "__main__":
