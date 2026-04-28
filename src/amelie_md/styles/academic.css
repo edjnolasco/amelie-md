@@ -85,6 +85,11 @@ body {
     margin: auto;
 }
 
+.codehilite {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
 h1,
 h2,
 h3,
@@ -127,6 +132,8 @@ pre {
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-word;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
 pre code {
@@ -169,4 +176,43 @@ blockquote {
 pre code {
     font-family: "Courier New", monospace;
     font-size: 10pt;
+}
+
+.codehilite {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    margin: 18px 0;
+    overflow-x: auto;
+}
+
+.codehilite pre {
+    margin: 0;
+    border: none;
+    background: transparent;
+}
+
+.codehilite code {
+    background: transparent;
+    padding: 0;
+}
+
+ul, ol {
+    margin: 12px 0;
+    padding-left: 22px;
+}
+
+li {
+    margin: 4px 0;
+}
+
+ul li {
+    list-style-type: disc;
+}
+
+ul ul li {
+    list-style-type: circle;
+}
+
+ol li {
+    list-style-type: decimal;
 }

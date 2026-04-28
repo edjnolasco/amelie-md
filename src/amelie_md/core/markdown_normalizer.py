@@ -11,18 +11,15 @@ def _wrap_ascii_diagrams(content: str) -> str:
     lines = content.splitlines()
     result: list[str] = []
 
-    diagram_chars = ("│", "─", "▼", "├", "└", "┌", "┐", "┘", "┬", "┴")
+    diagram_chars = ("│", "─", "├", "└", "┌", "┐", "┘", "┬", "┴", "▼")
+
+    def is_list_line(line: str) -> bool:
+        stripped = line.lstrip()
+        return stripped.startswith(("- ", "* ", "+ ", "• "))
 
     def has_diagram_chars(line: str) -> bool:
-        # Ignorar listas normales
-        stripped = line.strip()
-
-        if stripped.startswith(("- ", "* ", "+ ")):
+        if is_list_line(line):
             return False
-
-        # Detectar solo caracteres estructurales reales
-        diagram_chars = ("│", "─", "├", "└", "┌", "┐", "┘", "┬", "┴", "▼")
-
         return any(ch in line for ch in diagram_chars)
 
     def looks_like_heading(line: str) -> bool:
@@ -32,6 +29,12 @@ def _wrap_ascii_diagrams(content: str) -> str:
 
     while i < len(lines):
         line = lines[i]
+
+        # 🔴 NO tocar listas
+        if is_list_line(line):
+            result.append(line)
+            i += 1
+            continue
 
         if looks_like_heading(line):
             result.append(line)
@@ -51,7 +54,7 @@ def _wrap_ascii_diagrams(content: str) -> str:
             while i < len(lines):
                 current = lines[i]
 
-                if looks_like_heading(current):
+                if looks_like_heading(current) or is_list_line(current):
                     break
 
                 if current.strip() == "":
@@ -84,6 +87,26 @@ def normalize_markdown(
 
     inferred_metadata = infer_metadata(metadata, input_path=input_path)
     normalized_content = normalize_headings(content)
-    normalized_content = _wrap_ascii_diagrams(normalized_content).strip()
+    normalized_content = _wrap_ascii_diagrams(normalized_content)
 
     return f"{format_frontmatter(inferred_metadata)}\n\n{normalized_content}\n"
+    
+def _fix_markdown_lists(content: str) -> str:
+    lines = content.splitlines()
+    result: list[str] = []
+
+    for i, line in enumerate(lines):
+        stripped = line.lstrip()
+
+        is_list = stripped.startswith(("- ", "* ", "+ "))
+
+        if is_list and i > 0:
+            prev = lines[i - 1].strip()
+
+            # Si la línea anterior no es vacía, insertar salto
+            if prev != "":
+                result.append("")
+
+        result.append(line)
+
+    return "\n".join(result)

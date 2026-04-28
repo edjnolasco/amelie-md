@@ -4,13 +4,15 @@ import ftfy
 
 
 def repair_text_encoding(text: str) -> str:
-    """
-    Repair common mojibake / broken encoding issues.
+    import ftfy
+    import re
 
-    Examples:
-    resoluci贸n -> resolución
-    sem谩ntica -> semántica
-    Rep煤blica -> República
-    """
+    fixed = ftfy.fix_text(text)
 
-    return ftfy.fix_text(text)
+    # eliminar basura unicode agresivamente
+    fixed = re.sub(r"[\uFFFE\uFFFF]", "", fixed)
+
+    # eliminar caracteres invisibles problemáticos
+    fixed = fixed.replace("￾", "")
+
+    return fixed
