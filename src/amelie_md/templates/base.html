@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ metadata.title }}</title>
+    <style>
+        {{ style | safe }}
+    </style>
+</head>
+<body>
+
+    <section class="cover">
+        <h1>{{ metadata.title }}</h1>
+
+        {% if metadata.subtitle %}
+        <p class="subtitle">{{ metadata.subtitle }}</p>
+        {% endif %}
+
+        {% if metadata.author %}
+        <p class="author">{{ metadata.author }}</p>
+        {% endif %}
+
+        {% if metadata.date %}
+        <p class="date">{{ metadata.date }}</p>
+        {% endif %}
+    </section>
+
+    {% if toc %}
+    <section class="toc">
+        <h2>Tabla de contenido</h2>
+        {{ toc | safe }}
+    </section>
+    {% endif %}
+
+    <main class="document">
+        {{ content | safe }}
+    </main>
+
+</body>
+</html>

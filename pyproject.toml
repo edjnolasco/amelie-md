@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amelie-md"
+version = "0.1.0"
+description = "Amelie Suite - Markdown renderer for academic and technical documents"
+authors = [
+    { name = "Edwin José Nolasco" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "markdown>=3.5",
+    "jinja2>=3.1",
+    "pygments>=2.17",
+    "typer>=0.12",
+    "pyyaml>=6.0",
+    "weasyprint>=61.0",
+    "ftfy>=6.2",
+	"charset-normalizer>=3.3"
+]
+
+[project.scripts]
+amelie = "amelie_md.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
