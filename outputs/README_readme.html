@@ -141,16 +141,17 @@ code {
 }
 
 pre {
-    background: #f5f5f5;
-    padding: 12px;
+    background: #f6f8fa;
+    padding: 16px;
     overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
+    border-radius: 6px;
+    border: 1px solid #d0d7de;
+    line-height: 1.45;
 }
 
 pre code {
-    display: block;
-    white-space: pre-wrap;
+    background: transparent;
+    padding: 0;
 }
 
 table {
@@ -183,11 +184,6 @@ blockquote {
     border-left: 4px solid #d0d7de;
     padding-left: 12px;
     margin-left: 0;
-}
-
-pre code {
-    font-family: "Courier New", monospace;
-    font-size: 10pt;
 }
     </style>
 </head>
@@ -225,6 +221,7 @@ pre code {
 <li><a href="#ejemplos-de-uso">📡 Ejemplos de uso</a></li>
 <li><a href="#respuestas-tipicas">❗ Respuestas típicas</a></li>
 <li><a href="#testing">🧪 Testing</a></li>
+<li><a href="#estructura-del-proyecto">📁 Estructura del proyecto</a></li>
 <li><a href="#consideraciones-de-diseno">📌 Consideraciones de diseño</a></li>
 <li><a href="#casos-de-uso">🔭 Casos de uso</a></li>
 <li><a href="#autor">👤 Autor</a></li>
@@ -249,15 +246,15 @@ pre code {
 <hr />
 <h2 id="objetivo">🎯 Objetivo</h2>
 <p>Proveer un servicio backend robusto y escalable que permita:</p>
-<div class="codehilite"><pre><span></span><code>- Resolver nombres territoriales ambiguos
-- Normalizar estructuras administrativas
-- Soportar integraciones externas (apps, DSS, pipelines ML)
-- Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)
-</code></pre></div>
-
+<ul>
+<li>Resolver nombres territoriales ambiguos</li>
+<li>Normalizar estructuras administrativas</li>
+<li>Soportar integraciones externas (apps, DSS, pipelines ML)</li>
+<li>Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)</li>
+</ul>
 <hr />
 <h2 id="arquitectura">🧱 Arquitectura</h2>
-<div class="codehilite"><pre><span></span><code>Cliente (API / SDK / DSS)
+<p>Cliente (API / SDK / DSS)
         │
         ▼
 FastAPI (API v1)
@@ -281,9 +278,7 @@ FastAPI (API v1)
         │     - request_id / client_id
         │
         ▼
-Catálogo Territorial (~20k entidades)
-</code></pre></div>
-
+Catálogo Territorial (~20k entidades)</p>
 <hr />
 <h2 id="estado-del-sistema">📦 Estado del sistema</h2>
 <ul>
@@ -423,24 +418,18 @@ data/api_keys.json</p>
 429 Too Many Requests  </p>
 <hr />
 <h2 id="testing">🧪 Testing</h2>
-<div class="codehilite"><pre><span></span><code>```bash
-python -m pytest
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>---
-
-## 📁 Estructura del proyecto
-
-```text
-rd-territorial-system/
+<hr />
+<h2 id="estructura-del-proyecto">📁 Estructura del proyecto</h2>
+<p>rd-territorial-system/
 ├── app/
 ├── src/
 ├── data/
 ├── tests/
 ├── Dockerfile
-├── docker-compose.yml
-</code></pre></div>
-
+├── docker-compose.yml</p>
 <hr />
 <h2 id="consideraciones-de-diseno">📌 Consideraciones de diseño</h2>
 <ul>

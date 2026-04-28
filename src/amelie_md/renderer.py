@@ -36,6 +36,7 @@ class AmelieRenderer:
                 "toc",
                 "fenced_code",
                 "tables",
+                "toc",
             ],
             extension_configs={
                 "toc": {

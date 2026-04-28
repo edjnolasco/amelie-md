@@ -6,7 +6,7 @@
     <style>
         @page {
     size: A4;
-    margin: 2cm;
+    margin: 2.54cm;
 }
 
 @media print {
@@ -14,76 +14,75 @@
         margin: 0;
     }
 
-    .cover {
+    .cover,
+    .toc {
         page-break-after: always;
     }
 
     pre,
-    table {
+    table,
+    blockquote {
         page-break-inside: avoid;
     }
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-family: "Times New Roman", serif;
     background: #ffffff;
-    color: #24292f;
-    line-height: 1.55;
+    color: #111111;
+    line-height: 2;
     margin: 40px;
-    font-size: 11pt;
+    font-size: 12pt;
 }
 
 .cover {
-    max-width: 900px;
-    margin: 40px auto 50px auto;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #d0d7de;
+    text-align: center;
+    margin-top: 120px;
+    margin-bottom: 90px;
+    page-break-after: always;
 }
 
 .cover h1 {
-    font-size: 28pt;
-    line-height: 1.2;
-    margin-bottom: 10px;
+    font-size: 24pt;
+    line-height: 1.25;
+    margin-bottom: 24px;
 }
 
 .cover .subtitle {
-    font-size: 14pt;
-    color: #57606a;
+    font-size: 16pt;
+    margin-bottom: 36px;
+    color: #333333;
 }
 
 .cover .author,
 .cover .date {
-    font-size: 10.5pt;
-    color: #57606a;
+    font-size: 12pt;
+    color: #333333;
 }
 
 .toc {
     max-width: 900px;
-    margin: 0 auto 40px auto;
-    padding: 16px;
-    border: 1px solid #d0d7de;
-    border-radius: 6px;
-    background: #f6f8fa;
+    margin: 0 auto 60px auto;
+    page-break-after: always;
 }
 
 .toc h2 {
-    margin-top: 0;
-    font-size: 16pt;
-    border-bottom: 1px solid #d0d7de;
+    font-size: 18pt;
+    border-bottom: 1px solid #cccccc;
     padding-bottom: 6px;
 }
 
 .toc ul {
-    margin-bottom: 0;
-    padding-left: 20px;
+    list-style: none;
+    padding-left: 0;
 }
 
 .toc li {
-    margin: 4px 0;
+    margin: 6px 0;
 }
 
 .toc a {
-    color: #0969da;
+    color: #111111;
     text-decoration: none;
 }
 
@@ -96,47 +95,35 @@ h1,
 h2,
 h3,
 h4 {
-    font-weight: 600;
-    line-height: 1.25;
-    color: #24292f;
+    font-weight: bold;
+    margin-top: 1.5em;
+    line-height: 1.3;
 }
 
 h1 {
-    font-size: 26pt;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid #d0d7de;
+    font-size: 20pt;
+    text-align: center;
 }
 
 h2 {
-    font-size: 20pt;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid #d0d7de;
-    margin-top: 1.6em;
+    font-size: 16pt;
+    border-bottom: 1px solid #cccccc;
+    padding-bottom: 5px;
 }
 
 h3 {
-    font-size: 15pt;
-    margin-top: 1.4em;
+    font-size: 14pt;
 }
 
 p {
+    text-align: justify;
     margin: 0 0 12px 0;
 }
 
-ul,
-ol {
-    padding-left: 2em;
-}
-
-li {
-    margin: 4px 0;
-}
-
 code {
-    background: #afb8c133;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    background: #f5f5f5;
+    padding: 2px 4px;
+    font-family: Consolas, "Courier New", monospace;
     font-size: 10pt;
 }
 
@@ -144,50 +131,45 @@ pre {
     background: #f5f5f5;
     padding: 12px;
     overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
+    border: 1px solid #dddddd;
+    line-height: 1.4;
 }
 
 pre code {
-    display: block;
-    white-space: pre-wrap;
+    background: transparent;
+    padding: 0;
 }
 
 table {
     border-collapse: collapse;
     width: 100%;
-    margin: 18px 0;
+    margin: 20px 0;
     font-size: 10.5pt;
 }
 
 table,
 th,
 td {
-    border: 1px solid #d0d7de;
+    border: 1px solid #444444;
 }
 
 th,
 td {
-    padding: 8px 10px;
+    padding: 8px;
     text-align: left;
     vertical-align: top;
 }
 
 th {
-    background: #f6f8fa;
-    font-weight: 600;
+    background: #f2f2f2;
+    font-weight: bold;
 }
 
 blockquote {
-    color: #57606a;
-    border-left: 4px solid #d0d7de;
+    border-left: 4px solid #999999;
     padding-left: 12px;
+    color: #555555;
     margin-left: 0;
-}
-
-pre code {
-    font-family: "Courier New", monospace;
-    font-size: 10pt;
 }
     </style>
 </head>
@@ -225,6 +207,7 @@ pre code {
 <li><a href="#ejemplos-de-uso">📡 Ejemplos de uso</a></li>
 <li><a href="#respuestas-tipicas">❗ Respuestas típicas</a></li>
 <li><a href="#testing">🧪 Testing</a></li>
+<li><a href="#estructura-del-proyecto">📁 Estructura del proyecto</a></li>
 <li><a href="#consideraciones-de-diseno">📌 Consideraciones de diseño</a></li>
 <li><a href="#casos-de-uso">🔭 Casos de uso</a></li>
 <li><a href="#autor">👤 Autor</a></li>
@@ -249,15 +232,15 @@ pre code {
 <hr />
 <h2 id="objetivo">🎯 Objetivo</h2>
 <p>Proveer un servicio backend robusto y escalable que permita:</p>
-<div class="codehilite"><pre><span></span><code>- Resolver nombres territoriales ambiguos
-- Normalizar estructuras administrativas
-- Soportar integraciones externas (apps, DSS, pipelines ML)
-- Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)
-</code></pre></div>
-
+<ul>
+<li>Resolver nombres territoriales ambiguos</li>
+<li>Normalizar estructuras administrativas</li>
+<li>Soportar integraciones externas (apps, DSS, pipelines ML)</li>
+<li>Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)</li>
+</ul>
 <hr />
 <h2 id="arquitectura">🧱 Arquitectura</h2>
-<div class="codehilite"><pre><span></span><code>Cliente (API / SDK / DSS)
+<p>Cliente (API / SDK / DSS)
         │
         ▼
 FastAPI (API v1)
@@ -281,9 +264,7 @@ FastAPI (API v1)
         │     - request_id / client_id
         │
         ▼
-Catálogo Territorial (~20k entidades)
-</code></pre></div>
-
+Catálogo Territorial (~20k entidades)</p>
 <hr />
 <h2 id="estado-del-sistema">📦 Estado del sistema</h2>
 <ul>
@@ -423,24 +404,18 @@ data/api_keys.json</p>
 429 Too Many Requests  </p>
 <hr />
 <h2 id="testing">🧪 Testing</h2>
-<div class="codehilite"><pre><span></span><code>```bash
-python -m pytest
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>---
-
-## 📁 Estructura del proyecto
-
-```text
-rd-territorial-system/
+<hr />
+<h2 id="estructura-del-proyecto">📁 Estructura del proyecto</h2>
+<p>rd-territorial-system/
 ├── app/
 ├── src/
 ├── data/
 ├── tests/
 ├── Dockerfile
-├── docker-compose.yml
-</code></pre></div>
-
+├── docker-compose.yml</p>
 <hr />
 <h2 id="consideraciones-de-diseno">📌 Consideraciones de diseño</h2>
 <ul>

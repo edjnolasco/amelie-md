@@ -136,17 +136,16 @@ code {
 }
 
 pre {
-    background: #f8fafc;
-    padding: 14px;
+    background: #f5f5f5;
+    padding: 12px;
     overflow-x: auto;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 pre code {
-    background: transparent;
-    padding: 0;
+    display: block;
+    white-space: pre-wrap;
 }
 
 table {
@@ -180,4 +179,9 @@ blockquote {
     color: #374151;
     background: #f9fafb;
     margin-left: 0;
+}
+
+pre code {
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
 }

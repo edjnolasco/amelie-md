@@ -21,15 +21,18 @@ API REST diseñada para resolver, normalizar y consultar entidades territoriales
 
 Proveer un servicio backend robusto y escalable que permita:
 
+```text
 - Resolver nombres territoriales ambiguos
 - Normalizar estructuras administrativas
 - Soportar integraciones externas (apps, DSS, pipelines ML)
 - Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)
+```
 
 ---
 
 ## 🧱 Arquitectura
 
+```text
 Cliente (API / SDK / DSS)
         │
         ▼
@@ -55,6 +58,7 @@ FastAPI (API v1)
         │
         ▼
 Catálogo Territorial (~20k entidades)
+```
 
 ---
 
@@ -217,14 +221,17 @@ curl -X POST http://localhost:8000/api/v1/resolve   -H "Authorization: Bearer <A
 
 ## 🧪 Testing
 
+```text
 ```bash
 python -m pytest
+```
 ```
 
 ---
 
 ## 📁 Estructura del proyecto
 
+```text
 rd-territorial-system/
 ├── app/
 ├── src/
@@ -232,6 +239,7 @@ rd-territorial-system/
 ├── tests/
 ├── Dockerfile
 ├── docker-compose.yml
+```
 
 ---
 
