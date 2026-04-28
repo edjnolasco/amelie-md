@@ -203,9 +203,16 @@ ul, ol {
 
 li {
     margin: 4px 0;
+}
+
+ul li {
     list-style-type: disc;
 }
 
-li li {
+ul ul li {
     list-style-type: circle;
+}
+
+ol li {
+    list-style-type: decimal;
 }
