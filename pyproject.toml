@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amelie-md"
-version = "0.1.0"
+version = "0.7.0"
 description = "Amelie Suite - Markdown renderer for academic and technical documents"
 authors = [
     { name = "Edwin José Nolasco" }
