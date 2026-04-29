@@ -62,7 +62,8 @@ def build(
                 title=title,
                 author=author,
                 date=date,
-            )
+            ),
+            style=style_name,
         ).export(
             markdown_text=markdown_text,
             output_path=output_path,
