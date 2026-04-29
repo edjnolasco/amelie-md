@@ -3,13 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from docx import Document
-from docx.enum.style import WD_STYLE_TYPE
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+
+from amelie_md.styles.docx import AcademicDocxStyle
 
 
 @dataclass(frozen=True)
@@ -22,8 +24,13 @@ class DocxMetadata:
 class DocxExporter:
     """Professional DOCX exporter for Amelie MD."""
 
-    def __init__(self, metadata: DocxMetadata | None = None) -> None:
+    def __init__(
+        self,
+        metadata: DocxMetadata | None = None,
+        style: str = "academic",
+    ) -> None:
         self.metadata = metadata or DocxMetadata()
+        self.style = style.lower().strip()
         self.parser = MarkdownIt("commonmark").enable("table")
 
     def export(self, markdown_text: str, output_path: str | Path) -> Path:
@@ -31,7 +38,7 @@ class DocxExporter:
         document = Document()
 
         self._configure_document(document)
-        self._configure_styles(document)
+        self._apply_style(document)
 
         if self._has_cover():
             self._add_cover(document)
@@ -59,36 +66,11 @@ class DocxExporter:
         if self.metadata.author:
             properties.author = self.metadata.author
 
-    def _configure_styles(self, document: Document) -> None:
-        styles = document.styles
+    def _apply_style(self, document: Document) -> None:
+        if self.style != "academic":
+            raise ValueError(f"Unsupported DOCX style: {self.style}")
 
-        normal = styles["Normal"]
-        normal.font.name = "Calibri"
-        normal.font.size = Pt(11)
-        normal.paragraph_format.space_after = Pt(6)
-
-        for style_name, size in {
-            "Heading 1": 18,
-            "Heading 2": 15,
-            "Heading 3": 13,
-        }.items():
-            style = styles[style_name]
-            style.font.name = "Calibri"
-            style.font.size = Pt(size)
-            style.font.bold = True
-            style.font.color.rgb = RGBColor(31, 78, 121)
-            style.paragraph_format.space_before = Pt(12)
-            style.paragraph_format.space_after = Pt(6)
-
-        if "Amelie Code Block" not in styles:
-            code_style = styles.add_style("Amelie Code Block", WD_STYLE_TYPE.PARAGRAPH)
-            code_style.font.name = "Consolas"
-            code_style.font.size = Pt(9)
-            code_style.font.color.rgb = RGBColor(45, 45, 45)
-            code_style.paragraph_format.left_indent = Inches(0.25)
-            code_style.paragraph_format.right_indent = Inches(0.25)
-            code_style.paragraph_format.space_before = Pt(6)
-            code_style.paragraph_format.space_after = Pt(6)
+        AcademicDocxStyle().apply(document)
 
     def _has_cover(self) -> bool:
         return bool(self.metadata.title or self.metadata.author or self.metadata.date)
@@ -98,24 +80,30 @@ class DocxExporter:
         author = self.metadata.author or ""
         document_date = self.metadata.date or date.today().isoformat()
 
+        document.add_paragraph("\n" * 5)
+
         title_paragraph = document.add_paragraph()
         title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title_run = title_paragraph.add_run(title)
-        title_run.bold = True
-        title_run.font.size = Pt(24)
+        run = title_paragraph.add_run(title)
+        run.bold = True
+        run.font.size = Pt(28)
+
+        document.add_paragraph("\n" * 2)
 
         if author:
             author_paragraph = document.add_paragraph()
             author_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            author_run = author_paragraph.add_run(author)
-            author_run.font.size = Pt(13)
+            run = author_paragraph.add_run(author)
+            run.font.size = Pt(14)
+
+        document.add_paragraph("\n")
 
         date_paragraph = document.add_paragraph()
         date_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        date_run = date_paragraph.add_run(document_date)
-        date_run.font.size = Pt(11)
+        run = date_paragraph.add_run(document_date)
+        run.font.size = Pt(12)
 
-        document.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        document.add_page_break()
 
     def _render_tokens(self, document: Document, tokens: list[Token]) -> None:
         index = 0
@@ -125,15 +113,18 @@ class DocxExporter:
 
             if token.type == "heading_open":
                 level = int(token.tag.removeprefix("h"))
-                text = self._inline_text(tokens[index + 1])
-                document.add_heading(text, level=min(level, 3))
+                paragraph = document.add_heading(level=min(level, 3))
+                self._add_inline_runs(paragraph, tokens[index + 1])
                 index += 3
                 continue
 
             if token.type == "paragraph_open":
-                text = self._inline_text(tokens[index + 1])
-                if text:
-                    document.add_paragraph(text, style="Normal")
+                paragraph = document.add_paragraph(style="Normal")
+                self._add_inline_runs(paragraph, tokens[index + 1])
+
+                if not paragraph.text.strip():
+                    self._remove_empty_paragraph(paragraph)
+
                 index += 3
                 continue
 
@@ -173,9 +164,12 @@ class DocxExporter:
                 return index + 1
 
             if token.type == "paragraph_open":
-                text = self._inline_text(tokens[index + 1])
-                if text:
-                    document.add_paragraph(text, style=style)
+                paragraph = document.add_paragraph(style=style)
+                self._add_inline_runs(paragraph, tokens[index + 1])
+
+                if not paragraph.text.strip():
+                    self._remove_empty_paragraph(paragraph)
+
                 index += 3
                 continue
 
@@ -248,3 +242,45 @@ class DocxExporter:
                 parts.append("\n")
 
         return "".join(parts).strip()
+
+    def _add_inline_runs(self, paragraph: Any, token: Token) -> None:
+        if token.type != "inline":
+            if token.content:
+                paragraph.add_run(token.content)
+            return
+
+        bold = False
+        italic = False
+
+        for child in token.children or []:
+            if child.type == "text":
+                run = paragraph.add_run(child.content)
+                run.bold = bold
+                run.italic = italic
+
+            elif child.type == "strong_open":
+                bold = True
+
+            elif child.type == "strong_close":
+                bold = False
+
+            elif child.type == "em_open":
+                italic = True
+
+            elif child.type == "em_close":
+                italic = False
+
+            elif child.type == "code_inline":
+                run = paragraph.add_run(child.content)
+                run.bold = bold
+                run.italic = italic
+                run.font.name = "Consolas"
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(45, 45, 45)
+
+            elif child.type in {"softbreak", "hardbreak"}:
+                paragraph.add_run().add_break()
+
+    def _remove_empty_paragraph(self, paragraph: Any) -> None:
+        element = paragraph._element
+        element.getparent().remove(element)
