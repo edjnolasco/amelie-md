@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -208,20 +211,105 @@ class DocxExporter:
             column_count = max(len(row) for row in rows)
             table = document.add_table(rows=len(rows), cols=column_count)
             table.style = "Table Grid"
+            table.autofit = True
 
             for row_index, row in enumerate(rows):
-                for column_index, value in enumerate(row):
+                for column_index in range(column_count):
+                    value = row[column_index] if column_index < len(row) else ""
                     cell = table.cell(row_index, column_index)
                     cell.text = value
+                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+                    self._set_cell_margins(
+                        cell,
+                        top=120,
+                        start=120,
+                        bottom=120,
+                        end=120,
+                    )
+
+                    for paragraph in cell.paragraphs:
+                        paragraph.paragraph_format.space_before = Pt(0)
+                        paragraph.paragraph_format.space_after = Pt(0)
+
+                        if row_index == 0:
+                            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        elif self._looks_numeric(value):
+                            paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                        else:
+                            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+                        for run in paragraph.runs:
+                            run.font.name = "Calibri"
+                            run.font.size = Pt(10)
+
+                            if row_index == 0:
+                                run.bold = True
+                                run.font.color.rgb = RGBColor(255, 255, 255)
 
                     if row_index == 0:
-                        for paragraph in cell.paragraphs:
-                            for run in paragraph.runs:
-                                run.bold = True
+                        self._set_cell_shading(cell, "1F4E79")
 
             document.add_paragraph()
 
         return index + 1
+        
+    def _set_cell_margins(
+        self,
+        cell,
+        top: int = 120,
+        start: int = 120,
+        bottom: int = 120,
+        end: int = 120,
+    ) -> None:
+        tc = cell._tc
+        tc_pr = tc.get_or_add_tcPr()
+
+        tc_mar = tc_pr.first_child_found_in("w:tcMar")
+
+        if tc_mar is None:
+            tc_mar = OxmlElement("w:tcMar")
+            tc_pr.append(tc_mar)
+
+        for margin_name, margin_value in {
+            "top": top,
+            "start": start,
+            "bottom": bottom,
+            "end": end,
+        }.items():
+            node = tc_mar.find(qn(f"w:{margin_name}"))
+
+            if node is None:
+                node = OxmlElement(f"w:{margin_name}")
+                tc_mar.append(node)
+
+            node.set(qn("w:w"), str(margin_value))
+            node.set(qn("w:type"), "dxa")
+
+
+    def _set_cell_shading(self, cell, fill: str) -> None:
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shading = tc_pr.find(qn("w:shd"))
+
+        if shading is None:
+            shading = OxmlElement("w:shd")
+            tc_pr.append(shading)
+
+        shading.set(qn("w:fill"), fill)
+
+
+    def _looks_numeric(self, value: str) -> bool:
+        cleaned = value.strip().replace(",", "").replace("%", "")
+
+        if not cleaned:
+            return False
+
+        try:
+            float(cleaned)
+        except ValueError:
+            return False
+
+        return True    
 
     def _add_code_block(self, document: Document, code: str) -> None:
         lines = code.rstrip("\n").splitlines() or [""]
