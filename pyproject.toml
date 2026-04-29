@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amelie-md"
-version = "0.1.0"
+version = "0.7.0"
 description = "Amelie Suite - Markdown renderer for academic and technical documents"
 authors = [
     { name = "Edwin José Nolasco" }
@@ -19,7 +19,8 @@ dependencies = [
     "pyyaml>=6.0",
     "weasyprint>=61.0",
     "ftfy>=6.2",
-	"charset-normalizer>=3.3"
+	"charset-normalizer>=3.3",
+	"python-docx>=1.1.2"
 ]
 
 [project.scripts]
