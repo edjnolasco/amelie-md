@@ -4,11 +4,12 @@ from pathlib import Path
 
 import typer
 
+from amelie_md.core.encoding import read_text_with_encoding_detection
 from amelie_md.core.markdown_normalizer import normalize_markdown
 from amelie_md.core.validator import validate_markdown
+from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
 from amelie_md.renderer import AmelieRenderer
-from amelie_md.core.encoding import read_text_with_encoding_detection
 
 app = typer.Typer(
     help="Amelie MD - Document normalizer and publisher",
@@ -26,12 +27,15 @@ def main() -> None:
 @app.command()
 def build(
     input_file: str = typer.Argument(..., help="Markdown file"),
-    to: str = typer.Option("html", help="Output format: html or pdf"),
+    to: str = typer.Option("html", help="Output format: html, pdf or docx"),
     output: str | None = typer.Option(None, help="Output file"),
     style: str = typer.Option(
         "academic",
         help="Document style: academic | report | readme",
     ),
+    title: str | None = typer.Option(None, help="DOCX cover title"),
+    author: str | None = typer.Option(None, help="DOCX cover author"),
+    date: str | None = typer.Option(None, help="DOCX cover date"),
 ) -> None:
     """
     Build a technical document from Markdown into a target format.
@@ -41,13 +45,32 @@ def build(
     output_format = to.lower().strip()
     style_name = style.lower().strip()
 
-    if output_format not in {"html", "pdf"}:
-        typer.echo("❌ Supported formats: html, pdf")
+    if output_format not in {"html", "pdf", "docx"}:
+        typer.echo("❌ Supported formats: html, pdf, docx")
         raise typer.Exit(code=1)
 
     if style_name not in {"academic", "report", "readme"}:
         typer.echo("❌ Supported styles: academic, report, readme")
         raise typer.Exit(code=1)
+
+    if output_format == "docx":
+        output_path = Path(output) if output else input_path.with_suffix(".docx")
+        markdown_text = input_path.read_text(encoding="utf-8")
+
+        DocxExporter(
+            metadata=DocxMetadata(
+                title=title,
+                author=author,
+                date=date,
+            )
+        ).export(
+            markdown_text=markdown_text,
+            output_path=output_path,
+        )
+
+        typer.echo(f"✅ Built DOCX: {output_path}")
+        typer.echo(f"ℹ️ Style: {style_name}")
+        return
 
     renderer = _create_renderer(style_name)
 
