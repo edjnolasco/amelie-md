@@ -122,8 +122,15 @@ class DocxExporter:
                 continue
 
             if token.type == "paragraph_open":
+                inline = tokens[index + 1]
+
+                if self._is_toc_token(inline):
+                    self._add_toc(document)
+                    index += 3
+                    continue
+
                 paragraph = document.add_paragraph(style="Normal")
-                self._add_inline_runs(paragraph, tokens[index + 1])
+                self._add_inline_runs(paragraph, inline)
 
                 if not paragraph.text.strip():
                     self._remove_empty_paragraph(paragraph)
@@ -311,11 +318,103 @@ class DocxExporter:
 
         return True    
 
+    def _set_cell_margins(
+        self,
+        cell: Any,
+        top: int = 120,
+        start: int = 120,
+        bottom: int = 120,
+        end: int = 120,
+    ) -> None:
+        tc = cell._tc
+        tc_pr = tc.get_or_add_tcPr()
+        tc_mar = tc_pr.first_child_found_in("w:tcMar")
+
+        if tc_mar is None:
+            tc_mar = OxmlElement("w:tcMar")
+            tc_pr.append(tc_mar)
+
+        for margin_name, margin_value in {
+            "top": top,
+            "start": start,
+            "bottom": bottom,
+            "end": end,
+        }.items():
+            node = tc_mar.find(qn(f"w:{margin_name}"))
+
+            if node is None:
+                node = OxmlElement(f"w:{margin_name}")
+                tc_mar.append(node)
+
+            node.set(qn("w:w"), str(margin_value))
+            node.set(qn("w:type"), "dxa")
+
+    def _set_cell_shading(self, cell: Any, fill: str) -> None:
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shading = tc_pr.find(qn("w:shd"))
+
+        if shading is None:
+            shading = OxmlElement("w:shd")
+            tc_pr.append(shading)
+
+        shading.set(qn("w:fill"), fill)
+
+    def _looks_numeric(self, value: str) -> bool:
+        cleaned = value.strip().replace(",", "").replace("%", "")
+
+        if not cleaned:
+            return False
+
+        try:
+            float(cleaned)
+        except ValueError:
+            return False
+
+        return True
+
     def _add_code_block(self, document: Document, code: str) -> None:
         lines = code.rstrip("\n").splitlines() or [""]
 
         for line in lines:
             document.add_paragraph(line, style="Amelie Code Block")
+
+    def _is_toc_token(self, token: Token) -> bool:
+        if token.type != "inline":
+            return False
+
+        return self._inline_text(token).strip() == "[[TOC]]"
+
+    def _add_toc(self, document: Document) -> None:
+        document.add_paragraph("Table of Contents", style="Heading 1")
+
+        paragraph = document.add_paragraph()
+        run = paragraph.add_run()
+
+        field_begin = OxmlElement("w:fldChar")
+        field_begin.set(qn("w:fldCharType"), "begin")
+
+        instruction = OxmlElement("w:instrText")
+        instruction.set(qn("xml:space"), "preserve")
+        instruction.text = 'TOC \\o "1-3" \\h \\z \\u'
+
+        field_separate = OxmlElement("w:fldChar")
+        field_separate.set(qn("w:fldCharType"), "separate")
+
+        placeholder_run = paragraph.add_run(
+            "Right-click and update field to generate table of contents"
+        )
+        placeholder_run.italic = True
+
+        field_end = OxmlElement("w:fldChar")
+        field_end.set(qn("w:fldCharType"), "end")
+
+        run._r.append(field_begin)
+        run._r.append(instruction)
+        run._r.append(field_separate)
+        run._r.append(field_end)
+
+        document.add_paragraph()
+        document.add_page_break()
 
     def _inline_text(self, token: Token) -> str:
         if token.type != "inline":
