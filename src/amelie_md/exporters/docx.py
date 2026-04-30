@@ -35,7 +35,7 @@ class DocxExporter:
         self.metadata = metadata or DocxMetadata()
         self.style = style.lower().strip()
         self.parser = MarkdownIt("commonmark").enable("table")
-        self.heading_counters = {1: 0, 2: 0, 3: 0}
+        self.heading_num_id: int | None = None
 
     def export(self, markdown_text: str, output_path: str | Path) -> Path:
         path = Path(output_path)
@@ -43,6 +43,7 @@ class DocxExporter:
 
         self._configure_document(document)
         self._apply_style(document)
+        self.heading_num_id = self._ensure_heading_numbering(document)
 
         if self._has_cover():
             self._add_cover(document)
@@ -117,10 +118,15 @@ class DocxExporter:
 
             if token.type == "heading_open":
                 level = min(int(token.tag.removeprefix("h")), 3)
-                number = self._next_heading_number(level)
-
                 paragraph = document.add_heading(level=level)
-                paragraph.add_run(f"{number} ")
+
+                if self.heading_num_id is not None:
+                    self._apply_heading_numbering(
+                        paragraph=paragraph,
+                        level=level,
+                        num_id=self.heading_num_id,
+                    )
+
                 self._add_inline_runs(paragraph, tokens[index + 1])
 
                 index += 3
@@ -320,36 +326,103 @@ class DocxExporter:
 
         return True
 
-    def _next_heading_number(self, level: int) -> str:
-        if level == 1:
-            self.heading_counters[1] += 1
-            self.heading_counters[2] = 0
-            self.heading_counters[3] = 0
-            return str(self.heading_counters[1])
+    def _ensure_heading_numbering(self, document: Document) -> int:
+        numbering_part = document.part.numbering_part
+        root = numbering_part.element
 
-        if level == 2:
-            if self.heading_counters[1] == 0:
-                self.heading_counters[1] = 1
+        abstract_id = str(self._next_numbering_id(root, "abstractNum"))
+        num_id = str(self._next_numbering_id(root, "num"))
 
-            self.heading_counters[2] += 1
-            self.heading_counters[3] = 0
-            return f"{self.heading_counters[1]}.{self.heading_counters[2]}"
+        abstract = OxmlElement("w:abstractNum")
+        abstract.set(qn("w:abstractNumId"), abstract_id)
 
-        if level == 3:
-            if self.heading_counters[1] == 0:
-                self.heading_counters[1] = 1
+        multi_level_type = OxmlElement("w:multiLevelType")
+        multi_level_type.set(qn("w:val"), "multilevel")
+        abstract.append(multi_level_type)
 
-            if self.heading_counters[2] == 0:
-                self.heading_counters[2] = 1
+        for ilvl, level_text in {
+            0: "%1",
+            1: "%1.%2",
+            2: "%1.%2.%3",
+        }.items():
+            lvl = OxmlElement("w:lvl")
+            lvl.set(qn("w:ilvl"), str(ilvl))
 
-            self.heading_counters[3] += 1
-            return (
-                f"{self.heading_counters[1]}."
-                f"{self.heading_counters[2]}."
-                f"{self.heading_counters[3]}"
-            )
+            start = OxmlElement("w:start")
+            start.set(qn("w:val"), "1")
 
-        return ""
+            num_fmt = OxmlElement("w:numFmt")
+            num_fmt.set(qn("w:val"), "decimal")
+
+            lvl_text = OxmlElement("w:lvlText")
+            lvl_text.set(qn("w:val"), level_text)
+
+            lvl_jc = OxmlElement("w:lvlJc")
+            lvl_jc.set(qn("w:val"), "left")
+
+            p_pr = OxmlElement("w:pPr")
+            ind = OxmlElement("w:ind")
+            ind.set(qn("w:left"), str(360 * ilvl))
+            ind.set(qn("w:hanging"), "0")
+            p_pr.append(ind)
+
+            lvl.append(start)
+            lvl.append(num_fmt)
+            lvl.append(lvl_text)
+            lvl.append(lvl_jc)
+            lvl.append(p_pr)
+
+            abstract.append(lvl)
+
+        root.append(abstract)
+
+        num = OxmlElement("w:num")
+        num.set(qn("w:numId"), num_id)
+
+        abstract_ref = OxmlElement("w:abstractNumId")
+        abstract_ref.set(qn("w:val"), abstract_id)
+
+        num.append(abstract_ref)
+        root.append(num)
+
+        return int(num_id)
+
+    def _next_numbering_id(self, root: Any, element_name: str) -> int:
+        existing_ids: list[int] = []
+
+        for element in root.findall(qn(f"w:{element_name}")):
+            attr_name = "w:abstractNumId" if element_name == "abstractNum" else "w:numId"
+            value = element.get(qn(attr_name))
+
+            if value is not None and value.isdigit():
+                existing_ids.append(int(value))
+
+        return max(existing_ids, default=0) + 1
+
+    def _apply_heading_numbering(
+        self,
+        paragraph: Any,
+        level: int,
+        num_id: int,
+    ) -> None:
+        p = paragraph._element
+        p_pr = p.get_or_add_pPr()
+
+        existing_num_pr = p_pr.find(qn("w:numPr"))
+        if existing_num_pr is not None:
+            p_pr.remove(existing_num_pr)
+
+        num_pr = OxmlElement("w:numPr")
+
+        ilvl = OxmlElement("w:ilvl")
+        ilvl.set(qn("w:val"), str(level - 1))
+
+        num_id_node = OxmlElement("w:numId")
+        num_id_node.set(qn("w:val"), str(num_id))
+
+        num_pr.append(ilvl)
+        num_pr.append(num_id_node)
+        p_pr.append(num_pr)
 
     def _add_code_block(self, document: Document, code: str) -> None:
         lines = code.rstrip("\n").splitlines() or [""]
@@ -371,7 +444,6 @@ class DocxExporter:
         title_run.font.color.rgb = RGBColor(0, 51, 102)
 
         paragraph = document.add_paragraph()
-
         field_run = paragraph.add_run()
 
         field_begin = OxmlElement("w:fldChar")
