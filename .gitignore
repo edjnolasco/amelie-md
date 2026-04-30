@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+echo "*.docx" >> .gitignore
+echo "~$*.docx" >> .gitignore

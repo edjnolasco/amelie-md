@@ -27,15 +27,11 @@ class DocxMetadata:
 class DocxExporter:
     """Professional DOCX exporter for Amelie MD."""
 
-    def __init__(
-        self,
-        metadata: DocxMetadata | None = None,
-        style: str = "academic",
-    ) -> None:
+    def __init__(self, metadata: DocxMetadata | None = None, style: str = "academic") -> None:
         self.metadata = metadata or DocxMetadata()
         self.style = style.lower().strip()
         self.parser = MarkdownIt("commonmark").enable("table")
-        self.heading_counters = {1: 0, 2: 0, 3: 0}
+        self.heading_num_id: int | None = None
 
     def export(self, markdown_text: str, output_path: str | Path) -> Path:
         path = Path(output_path)
@@ -43,6 +39,7 @@ class DocxExporter:
 
         self._configure_document(document)
         self._apply_style(document)
+        self.heading_num_id = self._ensure_heading_numbering(document)
 
         if self._has_cover():
             self._add_cover(document)
@@ -52,7 +49,6 @@ class DocxExporter:
 
         path.parent.mkdir(parents=True, exist_ok=True)
         document.save(path)
-
         return path
 
     def _configure_document(self, document: Document) -> None:
@@ -62,18 +58,14 @@ class DocxExporter:
         section.left_margin = Inches(0.9)
         section.right_margin = Inches(0.9)
 
-        properties = document.core_properties
-
         if self.metadata.title:
-            properties.title = self.metadata.title
-
+            document.core_properties.title = self.metadata.title
         if self.metadata.author:
-            properties.author = self.metadata.author
+            document.core_properties.author = self.metadata.author
 
     def _apply_style(self, document: Document) -> None:
         if self.style != "academic":
             raise ValueError(f"Unsupported DOCX style: {self.style}")
-
         AcademicDocxStyle().apply(document)
 
     def _has_cover(self) -> bool:
@@ -86,25 +78,25 @@ class DocxExporter:
 
         document.add_paragraph("\n" * 5)
 
-        title_paragraph = document.add_paragraph()
-        title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = title_paragraph.add_run(title)
+        paragraph = document.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run(title)
         run.bold = True
         run.font.size = Pt(28)
 
         document.add_paragraph("\n" * 2)
 
         if author:
-            author_paragraph = document.add_paragraph()
-            author_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = author_paragraph.add_run(author)
+            paragraph = document.add_paragraph()
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = paragraph.add_run(author)
             run.font.size = Pt(14)
 
         document.add_paragraph("\n")
 
-        date_paragraph = document.add_paragraph()
-        date_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = date_paragraph.add_run(document_date)
+        paragraph = document.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run(document_date)
         run.font.size = Pt(12)
 
         document.add_page_break()
@@ -117,12 +109,12 @@ class DocxExporter:
 
             if token.type == "heading_open":
                 level = min(int(token.tag.removeprefix("h")), 3)
-                number = self._next_heading_number(level)
-
                 paragraph = document.add_heading(level=level)
-                paragraph.add_run(f"{number} ")
-                self._add_inline_runs(paragraph, tokens[index + 1])
 
+                if self.heading_num_id is not None:
+                    self._apply_heading_numbering(paragraph, level, self.heading_num_id)
+
+                self._add_inline_runs(paragraph, tokens[index + 1])
                 index += 3
                 continue
 
@@ -232,13 +224,7 @@ class DocxExporter:
                     cell.text = value
                     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-                    self._set_cell_margins(
-                        cell,
-                        top=120,
-                        start=120,
-                        bottom=120,
-                        end=120,
-                    )
+                    self._set_cell_margins(cell)
 
                     for paragraph in cell.paragraphs:
                         paragraph.paragraph_format.space_before = Pt(0)
@@ -265,6 +251,113 @@ class DocxExporter:
             document.add_paragraph()
 
         return index + 1
+
+    def _ensure_heading_numbering(self, document: Document) -> int:
+        numbering = document.part.numbering_part.element
+
+        abstract_id = str(self._next_numbering_id(numbering, "abstractNum"))
+        num_id = str(self._next_numbering_id(numbering, "num"))
+
+        abstract = OxmlElement("w:abstractNum")
+        abstract.set(qn("w:abstractNumId"), abstract_id)
+
+        multi_level_type = OxmlElement("w:multiLevelType")
+        multi_level_type.set(qn("w:val"), "multilevel")
+        abstract.append(multi_level_type)
+
+        for ilvl, level_text in {
+            0: "%1",
+            1: "%1.%2",
+            2: "%1.%2.%3",
+        }.items():
+            level = OxmlElement("w:lvl")
+            level.set(qn("w:ilvl"), str(ilvl))
+
+            level.append(self._xml("w:start", val="1"))
+            level.append(self._xml("w:numFmt", val="decimal"))
+            level.append(self._xml("w:lvlText", val=level_text))
+            level.append(self._xml("w:lvlJc", val="left"))
+
+            paragraph_properties = OxmlElement("w:pPr")
+            indent = OxmlElement("w:ind")
+            indent.set(qn("w:left"), str(360 * ilvl))
+            indent.set(qn("w:hanging"), "0")
+            paragraph_properties.append(indent)
+            level.append(paragraph_properties)
+
+            abstract.append(level)
+
+        numbering.append(abstract)
+
+        numbering_instance = OxmlElement("w:num")
+        numbering_instance.set(qn("w:numId"), num_id)
+        numbering_instance.append(self._xml("w:abstractNumId", val=abstract_id))
+        numbering.append(numbering_instance)
+
+        return int(num_id)
+
+    def _next_numbering_id(self, root: Any, element_name: str) -> int:
+        existing_ids: list[int] = []
+
+        for element in root.findall(qn(f"w:{element_name}")):
+            attribute = "w:abstractNumId" if element_name == "abstractNum" else "w:numId"
+            value = element.get(qn(attribute))
+
+            if value is not None and value.isdigit():
+                existing_ids.append(int(value))
+
+        return max(existing_ids, default=0) + 1
+
+    def _apply_heading_numbering(self, paragraph: Any, level: int, num_id: int) -> None:
+        paragraph_properties = paragraph._element.get_or_add_pPr()
+
+        existing_numbering = paragraph_properties.find(qn("w:numPr"))
+        if existing_numbering is not None:
+            paragraph_properties.remove(existing_numbering)
+
+        numbering_properties = OxmlElement("w:numPr")
+        numbering_properties.append(self._xml("w:ilvl", val=str(level - 1)))
+        numbering_properties.append(self._xml("w:numId", val=str(num_id)))
+
+        paragraph_properties.append(numbering_properties)
+
+    def _add_toc(self, document: Document) -> None:
+        paragraph = document.add_paragraph()
+        run = paragraph.add_run("Table of Contents")
+        run.bold = True
+        run.font.size = Pt(20)
+        run.font.color.rgb = RGBColor(0, 51, 102)
+
+        paragraph = document.add_paragraph()
+        field_run = paragraph.add_run()
+
+        field_run._r.append(self._xml("w:fldChar", fldCharType="begin"))
+
+        instruction = OxmlElement("w:instrText")
+        instruction.set(qn("xml:space"), "preserve")
+        instruction.text = 'TOC \\o "1-3" \\h \\z \\u'
+        field_run._r.append(instruction)
+
+        field_run._r.append(self._xml("w:fldChar", fldCharType="separate"))
+
+        placeholder = paragraph.add_run(
+            "Right-click and update field to generate table of contents"
+        )
+        placeholder.italic = True
+
+        end_run = paragraph.add_run()
+        end_run._r.append(self._xml("w:fldChar", fldCharType="end"))
+
+        document.add_paragraph()
+        document.add_page_break()
+
+    def _xml(self, tag: str, **attrs: str) -> Any:
+        element = OxmlElement(tag)
+
+        for key, value in attrs.items():
+            element.set(qn(f"w:{key}"), value)
+
+        return element
 
     def _set_cell_margins(
         self,
@@ -320,37 +413,6 @@ class DocxExporter:
 
         return True
 
-    def _next_heading_number(self, level: int) -> str:
-        if level == 1:
-            self.heading_counters[1] += 1
-            self.heading_counters[2] = 0
-            self.heading_counters[3] = 0
-            return str(self.heading_counters[1])
-
-        if level == 2:
-            if self.heading_counters[1] == 0:
-                self.heading_counters[1] = 1
-
-            self.heading_counters[2] += 1
-            self.heading_counters[3] = 0
-            return f"{self.heading_counters[1]}.{self.heading_counters[2]}"
-
-        if level == 3:
-            if self.heading_counters[1] == 0:
-                self.heading_counters[1] = 1
-
-            if self.heading_counters[2] == 0:
-                self.heading_counters[2] = 1
-
-            self.heading_counters[3] += 1
-            return (
-                f"{self.heading_counters[1]}."
-                f"{self.heading_counters[2]}."
-                f"{self.heading_counters[3]}"
-            )
-
-        return ""
-
     def _add_code_block(self, document: Document, code: str) -> None:
         lines = code.rstrip("\n").splitlines() or [""]
 
@@ -362,44 +424,6 @@ class DocxExporter:
             return False
 
         return self._inline_text(token).strip() == "[[TOC]]"
-
-    def _add_toc(self, document: Document) -> None:
-        title_paragraph = document.add_paragraph()
-        title_run = title_paragraph.add_run("Table of Contents")
-        title_run.bold = True
-        title_run.font.size = Pt(20)
-        title_run.font.color.rgb = RGBColor(0, 51, 102)
-
-        paragraph = document.add_paragraph()
-
-        field_run = paragraph.add_run()
-
-        field_begin = OxmlElement("w:fldChar")
-        field_begin.set(qn("w:fldCharType"), "begin")
-
-        instruction = OxmlElement("w:instrText")
-        instruction.set(qn("xml:space"), "preserve")
-        instruction.text = 'TOC \\o "1-3" \\h \\z \\u'
-
-        field_separate = OxmlElement("w:fldChar")
-        field_separate.set(qn("w:fldCharType"), "separate")
-
-        field_run._r.append(field_begin)
-        field_run._r.append(instruction)
-        field_run._r.append(field_separate)
-
-        placeholder_run = paragraph.add_run(
-            "Right-click and update field to generate table of contents"
-        )
-        placeholder_run.italic = True
-
-        end_run = paragraph.add_run()
-        field_end = OxmlElement("w:fldChar")
-        field_end.set(qn("w:fldCharType"), "end")
-        end_run._r.append(field_end)
-
-        document.add_paragraph()
-        document.add_page_break()
 
     def _inline_text(self, token: Token) -> str:
         if token.type != "inline":
