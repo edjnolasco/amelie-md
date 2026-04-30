@@ -35,6 +35,7 @@ class DocxExporter:
         self.metadata = metadata or DocxMetadata()
         self.style = style.lower().strip()
         self.parser = MarkdownIt("commonmark").enable("table")
+        self.heading_counters = {1: 0, 2: 0, 3: 0}
 
     def export(self, markdown_text: str, output_path: str | Path) -> Path:
         path = Path(output_path)
@@ -115,9 +116,13 @@ class DocxExporter:
             token = tokens[index]
 
             if token.type == "heading_open":
-                level = int(token.tag.removeprefix("h"))
-                paragraph = document.add_heading(level=min(level, 3))
+                level = min(int(token.tag.removeprefix("h")), 3)
+                number = self._next_heading_number(level)
+
+                paragraph = document.add_heading(level=level)
+                paragraph.add_run(f"{number} ")
                 self._add_inline_runs(paragraph, tokens[index + 1])
+
                 index += 3
                 continue
 
@@ -260,63 +265,6 @@ class DocxExporter:
             document.add_paragraph()
 
         return index + 1
-        
-    def _set_cell_margins(
-        self,
-        cell,
-        top: int = 120,
-        start: int = 120,
-        bottom: int = 120,
-        end: int = 120,
-    ) -> None:
-        tc = cell._tc
-        tc_pr = tc.get_or_add_tcPr()
-
-        tc_mar = tc_pr.first_child_found_in("w:tcMar")
-
-        if tc_mar is None:
-            tc_mar = OxmlElement("w:tcMar")
-            tc_pr.append(tc_mar)
-
-        for margin_name, margin_value in {
-            "top": top,
-            "start": start,
-            "bottom": bottom,
-            "end": end,
-        }.items():
-            node = tc_mar.find(qn(f"w:{margin_name}"))
-
-            if node is None:
-                node = OxmlElement(f"w:{margin_name}")
-                tc_mar.append(node)
-
-            node.set(qn("w:w"), str(margin_value))
-            node.set(qn("w:type"), "dxa")
-
-
-    def _set_cell_shading(self, cell, fill: str) -> None:
-        tc_pr = cell._tc.get_or_add_tcPr()
-        shading = tc_pr.find(qn("w:shd"))
-
-        if shading is None:
-            shading = OxmlElement("w:shd")
-            tc_pr.append(shading)
-
-        shading.set(qn("w:fill"), fill)
-
-
-    def _looks_numeric(self, value: str) -> bool:
-        cleaned = value.strip().replace(",", "").replace("%", "")
-
-        if not cleaned:
-            return False
-
-        try:
-            float(cleaned)
-        except ValueError:
-            return False
-
-        return True    
 
     def _set_cell_margins(
         self,
@@ -372,6 +320,37 @@ class DocxExporter:
 
         return True
 
+    def _next_heading_number(self, level: int) -> str:
+        if level == 1:
+            self.heading_counters[1] += 1
+            self.heading_counters[2] = 0
+            self.heading_counters[3] = 0
+            return str(self.heading_counters[1])
+
+        if level == 2:
+            if self.heading_counters[1] == 0:
+                self.heading_counters[1] = 1
+
+            self.heading_counters[2] += 1
+            self.heading_counters[3] = 0
+            return f"{self.heading_counters[1]}.{self.heading_counters[2]}"
+
+        if level == 3:
+            if self.heading_counters[1] == 0:
+                self.heading_counters[1] = 1
+
+            if self.heading_counters[2] == 0:
+                self.heading_counters[2] = 1
+
+            self.heading_counters[3] += 1
+            return (
+                f"{self.heading_counters[1]}."
+                f"{self.heading_counters[2]}."
+                f"{self.heading_counters[3]}"
+            )
+
+        return ""
+
     def _add_code_block(self, document: Document, code: str) -> None:
         lines = code.rstrip("\n").splitlines() or [""]
 
@@ -385,10 +364,15 @@ class DocxExporter:
         return self._inline_text(token).strip() == "[[TOC]]"
 
     def _add_toc(self, document: Document) -> None:
-        document.add_paragraph("Table of Contents", style="Heading 1")
+        title_paragraph = document.add_paragraph()
+        title_run = title_paragraph.add_run("Table of Contents")
+        title_run.bold = True
+        title_run.font.size = Pt(20)
+        title_run.font.color.rgb = RGBColor(0, 51, 102)
 
         paragraph = document.add_paragraph()
-        run = paragraph.add_run()
+
+        field_run = paragraph.add_run()
 
         field_begin = OxmlElement("w:fldChar")
         field_begin.set(qn("w:fldCharType"), "begin")
@@ -400,18 +384,19 @@ class DocxExporter:
         field_separate = OxmlElement("w:fldChar")
         field_separate.set(qn("w:fldCharType"), "separate")
 
+        field_run._r.append(field_begin)
+        field_run._r.append(instruction)
+        field_run._r.append(field_separate)
+
         placeholder_run = paragraph.add_run(
             "Right-click and update field to generate table of contents"
         )
         placeholder_run.italic = True
 
+        end_run = paragraph.add_run()
         field_end = OxmlElement("w:fldChar")
         field_end.set(qn("w:fldCharType"), "end")
-
-        run._r.append(field_begin)
-        run._r.append(instruction)
-        run._r.append(field_separate)
-        run._r.append(field_end)
+        end_run._r.append(field_end)
 
         document.add_paragraph()
         document.add_page_break()
