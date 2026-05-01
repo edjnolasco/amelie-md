@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.enum.section import WD_SECTION_START
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -43,6 +44,7 @@ class DocxExporter:
 
         if self._has_cover():
             self._add_cover(document)
+            self._configure_content_section_pagination(document)
 
         tokens = self.parser.parse(markdown_text)
         self._render_tokens(document, tokens)
@@ -99,7 +101,71 @@ class DocxExporter:
         run = paragraph.add_run(document_date)
         run.font.size = Pt(12)
 
-        document.add_page_break()
+        document.add_section(WD_SECTION_START.NEW_PAGE)
+
+    def _configure_content_section_pagination(self, document: Document) -> None:
+        if len(document.sections) < 2:
+            return
+
+        cover_section = document.sections[0]
+        content_section = document.sections[1]
+
+        cover_section.footer.is_linked_to_previous = False
+        self._clear_footer(cover_section)
+
+        content_section.footer.is_linked_to_previous = False
+        self._restart_page_numbering(content_section, start=1)
+        self._add_page_number(content_section)
+
+    def _restart_page_numbering(self, section: Any, start: int = 1) -> None:
+        sect_pr = section._sectPr
+
+        existing_pg_num_type = sect_pr.find(qn("w:pgNumType"))
+        if existing_pg_num_type is not None:
+            sect_pr.remove(existing_pg_num_type)
+
+        page_number_type = OxmlElement("w:pgNumType")
+        page_number_type.set(qn("w:start"), str(start))
+        sect_pr.append(page_number_type)
+
+    def _add_page_number(self, section: Any) -> None:
+        footer = section.footer
+        paragraph = footer.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        self._clear_paragraph(paragraph)
+
+        paragraph.add_run("Página ")
+        self._add_word_field(paragraph, "PAGE")
+        paragraph.add_run(" de ")
+        self._add_word_field(paragraph, "NUMPAGES")
+        
+    def _add_word_field(self, paragraph: Any, instruction_text: str) -> None:
+        run = paragraph.add_run()
+
+        field_begin = OxmlElement("w:fldChar")
+        field_begin.set(qn("w:fldCharType"), "begin")
+
+        instruction = OxmlElement("w:instrText")
+        instruction.set(qn("xml:space"), "preserve")
+        instruction.text = instruction_text
+
+        field_end = OxmlElement("w:fldChar")
+        field_end.set(qn("w:fldCharType"), "end")
+
+        run._r.append(field_begin)
+        run._r.append(instruction)
+        run._r.append(field_end)    
+
+    def _clear_footer(self, section: Any) -> None:
+        footer = section.footer
+
+        for paragraph in footer.paragraphs:
+            self._clear_paragraph(paragraph)
+
+    def _clear_paragraph(self, paragraph: Any) -> None:
+        for run in list(paragraph.runs):
+            paragraph._element.remove(run._element)
 
     def _render_tokens(self, document: Document, tokens: list[Token]) -> None:
         index = 0

@@ -45,13 +45,48 @@ def build(
     output_format = to.lower().strip()
     style_name = style.lower().strip()
 
-    if output_format not in {"html", "pdf", "docx"}:
-        typer.echo("❌ Supported formats: html, pdf, docx")
+    if output_format not in {"html", "pdf", "docx", "docx-pdf"}:
+        typer.echo("❌ Supported formats: html, pdf, docx, docx-pdf")
         raise typer.Exit(code=1)
 
     if style_name not in {"academic", "report", "readme"}:
         typer.echo("❌ Supported styles: academic, report, readme")
         raise typer.Exit(code=1)
+    
+    if output_format == "docx-pdf":
+        output_dir = Path(output) if output else input_path.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        docx_output = output_dir / f"{input_path.stem}.docx"
+        pdf_output = output_dir / f"{input_path.stem}.pdf"
+
+        markdown_text = input_path.read_text(encoding="utf-8")
+
+        DocxExporter(
+            metadata=DocxMetadata(
+                title=title,
+                author=author,
+                date=date,
+            ),
+            style=style_name,
+        ).export(
+            markdown_text=markdown_text,
+            output_path=docx_output,
+        )
+
+        renderer = _create_renderer(style_name)
+        html = renderer.render_to_html_string(input_path)
+
+        PdfExporter().export(
+            html=html,
+            output_path=pdf_output,
+            base_url=input_path.parent,
+        )
+
+        typer.echo(f"✅ Built DOCX: {docx_output}")
+        typer.echo(f"✅ Built PDF: {pdf_output}")
+        typer.echo(f"ℹ️ Style: {style_name}")
+        return    
 
     if output_format == "docx":
         output_path = Path(output) if output else input_path.with_suffix(".docx")
