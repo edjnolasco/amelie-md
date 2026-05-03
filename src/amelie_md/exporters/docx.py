@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any
 from docx import Document
 from docx.enum.section import WD_SECTION_START
 from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
@@ -28,9 +29,23 @@ class DocxMetadata:
 class DocxExporter:
     """Professional DOCX exporter for Amelie MD."""
 
-    def __init__(self, metadata: DocxMetadata | None = None, style: str = "academic") -> None:
+    MANUAL_HEADING_NUMBER_RE = re.compile(
+        r"^\s*(?:\d+(?:\.\d+)*\.?|[IVXLCDM]+\.|[A-Z]\.)\s+",
+        re.IGNORECASE,
+    )
+
+    CODE_FONT_FAMILY = "Consolas"
+
+    def __init__(
+        self,
+        metadata: DocxMetadata | None = None,
+        style: str = "academic",
+        style_spec: Any | None = None,
+    ) -> None:
         self.metadata = metadata or DocxMetadata()
         self.style = style.lower().strip()
+        self.style_spec = style_spec
+
         self.parser = MarkdownIt("commonmark").enable("table")
         self.heading_num_id: int | None = None
 
@@ -40,6 +55,9 @@ class DocxExporter:
 
         self._configure_document(document)
         self._apply_style(document)
+        self._apply_style_spec(document, self.style_spec)
+        self._apply_academic_spacing(document)
+
         self.heading_num_id = self._ensure_heading_numbering(document)
 
         if self._has_cover():
@@ -48,6 +66,13 @@ class DocxExporter:
 
         tokens = self.parser.parse(markdown_text)
         self._render_tokens(document, tokens)
+
+        # Final pass: sections, styles, and dynamic runs/tables must reflect
+        # instructions after rendering all content.
+        if self.style_spec:
+            self._apply_style_spec(document, self.style_spec)
+            self._apply_academic_spacing(document)
+            self._apply_style_spec_to_existing_content(document)
 
         path.parent.mkdir(parents=True, exist_ok=True)
         document.save(path)
@@ -70,6 +95,175 @@ class DocxExporter:
             raise ValueError(f"Unsupported DOCX style: {self.style}")
         AcademicDocxStyle().apply(document)
 
+    def _style_value(self, style_spec: Any | None, name: str, default: Any = None) -> Any:
+        if style_spec is None:
+            return default
+
+        if isinstance(style_spec, dict):
+            return style_spec.get(name, default)
+
+        if hasattr(style_spec, name):
+            return getattr(style_spec, name)
+
+        if hasattr(style_spec, "model_dump"):
+            return style_spec.model_dump().get(name, default)
+
+        if hasattr(style_spec, "dict"):
+            return style_spec.dict().get(name, default)
+
+        return default
+
+    def _style_has_value(self, style_spec: Any | None, name: str) -> bool:
+        return self._style_value(style_spec, name) not in {None, ""}
+
+    def _apply_style_spec(self, document: Document, style_spec: Any | None) -> None:
+        if not style_spec:
+            return
+
+        self._apply_font_spec(document, style_spec)
+        self._apply_spacing_spec(document, style_spec)
+        self._apply_page_layout_spec(document, style_spec)
+
+    def _apply_font_spec(self, document: Document, style_spec: Any) -> None:
+        def set_font(style: Any) -> None:
+            font = style.font
+
+            font_family = self._style_value(style_spec, "font_family")
+            font_size = self._style_value(style_spec, "font_size")
+
+            if font_family:
+                self._set_font_family(font, font_family)
+
+            if font_size:
+                font.size = Pt(font_size)
+
+        style_names = ["Normal", "Body Text", "Caption", "Table Grid"]
+
+        for i in range(1, 10):
+            style_names.append(f"Heading {i}")
+
+        for style_name in style_names:
+            if style_name in document.styles:
+                set_font(document.styles[style_name])
+
+    def _apply_spacing_spec(self, document: Document, style_spec: Any) -> None:
+        spacing = self._style_value(style_spec, "spacing")
+
+        if not spacing:
+            return
+
+        spacing_rule = None
+
+        if spacing == "single":
+            spacing_rule = WD_LINE_SPACING.SINGLE
+        elif spacing == "double":
+            spacing_rule = WD_LINE_SPACING.DOUBLE
+
+        if spacing_rule is None:
+            return
+
+        style_names = ["Normal", "Body Text"]
+
+        for i in range(1, 10):
+            style_names.append(f"Heading {i}")
+
+        for style_name in style_names:
+            if style_name in document.styles:
+                paragraph_format = document.styles[style_name].paragraph_format
+                paragraph_format.line_spacing_rule = spacing_rule
+
+    def _apply_academic_spacing(self, document: Document) -> None:
+        has_explicit_spacing = bool(
+            self.style_spec and self._style_value(self.style_spec, "spacing")
+        )
+
+        if "Normal" in document.styles:
+            normal = document.styles["Normal"].paragraph_format
+            normal.space_before = Pt(0)
+            normal.space_after = Pt(6)
+            normal.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+            if not has_explicit_spacing:
+                normal.line_spacing = 1.15
+
+        if "Body Text" in document.styles:
+            body = document.styles["Body Text"].paragraph_format
+            body.space_before = Pt(0)
+            body.space_after = Pt(6)
+            body.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+            if not has_explicit_spacing:
+                body.line_spacing = 1.15
+
+        heading_spacing = {
+            1: (18, 6),
+            2: (14, 6),
+            3: (12, 6),
+            4: (10, 4),
+            5: (8, 4),
+            6: (8, 4),
+            7: (8, 4),
+            8: (8, 4),
+            9: (8, 4),
+        }
+
+        for level, (before, after) in heading_spacing.items():
+            style_name = f"Heading {level}"
+
+            if style_name not in document.styles:
+                continue
+
+            paragraph_format = document.styles[style_name].paragraph_format
+            paragraph_format.space_before = Pt(before)
+            paragraph_format.space_after = Pt(after)
+            paragraph_format.keep_with_next = True
+
+            if not has_explicit_spacing:
+                paragraph_format.line_spacing = 1.15
+
+        if "Amelie Code Block" in document.styles:
+            code_format = document.styles["Amelie Code Block"].paragraph_format
+            code_format.space_before = Pt(0)
+            code_format.space_after = Pt(0)
+            code_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+            code_font = document.styles["Amelie Code Block"].font
+            self._set_font_family(code_font, self.CODE_FONT_FAMILY)
+            code_font.size = Pt(9)
+
+        if "Table Grid" in document.styles:
+            table_font = document.styles["Table Grid"].font
+
+            font_family = self._style_value(self.style_spec, "font_family")
+            font_size = self._style_value(self.style_spec, "font_size")
+
+            if font_family:
+                self._set_font_family(table_font, font_family)
+
+            if font_size:
+                table_font.size = Pt(max(font_size - 1, 9))
+            else:
+                table_font.size = Pt(10)
+
+    def _apply_page_layout_spec(self, document: Document, style_spec: Any) -> None:
+        for section in document.sections:
+            self._apply_section_layout(section, style_spec)
+
+    def _to_inches(self, value: str | None, default: float) -> Any:
+        if not value:
+            return Inches(default)
+
+        normalized = str(value).lower().strip().replace('"', "").replace("inches", "in")
+        normalized = normalized.replace("inch", "in").replace("pulgadas", "in").replace("pulgada", "in")
+
+        if normalized.endswith("in"):
+            normalized = normalized.removesuffix("in").strip()
+
+        try:
+            return Inches(float(normalized))
+        except ValueError:
+            return Inches(default)
+
     def _has_cover(self) -> bool:
         return bool(self.metadata.title or self.metadata.author or self.metadata.date)
 
@@ -86,6 +280,10 @@ class DocxExporter:
         run.bold = True
         run.font.size = Pt(28)
 
+        font_family = self._style_value(self.style_spec, "font_family")
+        if font_family:
+            self._set_font_family(run.font, font_family)
+
         document.add_paragraph("\n" * 2)
 
         if author:
@@ -94,12 +292,18 @@ class DocxExporter:
             run = paragraph.add_run(author)
             run.font.size = Pt(14)
 
+            if font_family:
+                self._set_font_family(run.font, font_family)
+
         document.add_paragraph("\n")
 
         paragraph = document.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = paragraph.add_run(document_date)
         run.font.size = Pt(12)
+
+        if font_family:
+            self._set_font_family(run.font, font_family)
 
         document.add_section(WD_SECTION_START.NEW_PAGE)
 
@@ -116,6 +320,33 @@ class DocxExporter:
         content_section.footer.is_linked_to_previous = False
         self._restart_page_numbering(content_section, start=1)
         self._add_page_number(content_section)
+
+        if self.style_spec:
+            self._apply_section_layout(content_section, self.style_spec)
+
+    def _apply_section_layout(self, section: Any, style_spec: Any) -> None:
+        page_size = self._style_value(style_spec, "page_size")
+
+        if page_size == "letter":
+            section.page_width = Inches(8.5)
+            section.page_height = Inches(11)
+
+        section.top_margin = self._to_inches(
+            self._style_value(style_spec, "margin_top"),
+            default=1,
+        )
+        section.bottom_margin = self._to_inches(
+            self._style_value(style_spec, "margin_bottom"),
+            default=1,
+        )
+        section.left_margin = self._to_inches(
+            self._style_value(style_spec, "margin_left"),
+            default=1,
+        )
+        section.right_margin = self._to_inches(
+            self._style_value(style_spec, "margin_right"),
+            default=1,
+        )
 
     def _restart_page_numbering(self, section: Any, start: int = 1) -> None:
         sect_pr = section._sectPr
@@ -139,7 +370,7 @@ class DocxExporter:
         self._add_word_field(paragraph, "PAGE")
         paragraph.add_run(" de ")
         self._add_word_field(paragraph, "NUMPAGES")
-        
+
     def _add_word_field(self, paragraph: Any, instruction_text: str) -> None:
         run = paragraph.add_run()
 
@@ -155,7 +386,7 @@ class DocxExporter:
 
         run._r.append(field_begin)
         run._r.append(instruction)
-        run._r.append(field_end)    
+        run._r.append(field_end)
 
     def _clear_footer(self, section: Any) -> None:
         footer = section.footer
@@ -180,7 +411,7 @@ class DocxExporter:
                 if self.heading_num_id is not None:
                     self._apply_heading_numbering(paragraph, level, self.heading_num_id)
 
-                self._add_inline_runs(paragraph, tokens[index + 1])
+                self._add_heading_inline_runs(paragraph, tokens[index + 1])
                 index += 3
                 continue
 
@@ -304,8 +535,7 @@ class DocxExporter:
                             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
                         for run in paragraph.runs:
-                            run.font.name = "Calibri"
-                            run.font.size = Pt(10)
+                            self._apply_run_font_from_spec(run)
 
                             if row_index == 0:
                                 run.bold = True
@@ -317,6 +547,20 @@ class DocxExporter:
             document.add_paragraph()
 
         return index + 1
+
+    def _apply_run_font_from_spec(self, run: Any) -> None:
+        font_family = self._style_value(self.style_spec, "font_family")
+        font_size = self._style_value(self.style_spec, "font_size")
+
+        if font_family:
+            self._set_font_family(run.font, font_family)
+        elif not self.style_spec:
+            self._set_font_family(run.font, "Calibri")
+
+        if font_size:
+            run.font.size = Pt(font_size)
+        elif not self.style_spec:
+            run.font.size = Pt(10)
 
     def _ensure_heading_numbering(self, document: Document) -> int:
         numbering = document.part.numbering_part.element
@@ -393,6 +637,10 @@ class DocxExporter:
         run.bold = True
         run.font.size = Pt(20)
         run.font.color.rgb = RGBColor(0, 51, 102)
+
+        font_family = self._style_value(self.style_spec, "font_family")
+        if font_family:
+            self._set_font_family(run.font, font_family)
 
         paragraph = document.add_paragraph()
         field_run = paragraph.add_run()
@@ -483,7 +731,13 @@ class DocxExporter:
         lines = code.rstrip("\n").splitlines() or [""]
 
         for line in lines:
-            document.add_paragraph(line, style="Amelie Code Block")
+            paragraph = document.add_paragraph(style="Amelie Code Block")
+            paragraph.paragraph_format.space_before = Pt(0)
+            paragraph.paragraph_format.space_after = Pt(0)
+            paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+            run = paragraph.add_run(line)
+            self._apply_code_run_style(run, block=True)
 
     def _is_toc_token(self, token: Token) -> bool:
         if token.type != "inline":
@@ -505,10 +759,72 @@ class DocxExporter:
 
         return "".join(parts).strip()
 
+    def _strip_manual_heading_number(self, text: str) -> str:
+        return self.MANUAL_HEADING_NUMBER_RE.sub("", text, count=1)
+
+    def _add_heading_inline_runs(self, paragraph: Any, token: Token) -> None:
+        if token.type != "inline":
+            cleaned = self._strip_manual_heading_number(token.content)
+            if cleaned:
+                run = paragraph.add_run(cleaned)
+                self._apply_inline_style_spec(run)
+            return
+
+        bold = False
+        italic = False
+        number_checked = False
+
+        for child in token.children or []:
+            if child.type == "text":
+                content = child.content
+
+                if not number_checked:
+                    content = self._strip_manual_heading_number(content)
+                    number_checked = True
+
+                    if not content:
+                        continue
+
+                run = paragraph.add_run(content)
+                run.bold = bold
+                run.italic = italic
+                self._apply_inline_style_spec(run)
+
+            elif child.type == "strong_open":
+                bold = True
+
+            elif child.type == "strong_close":
+                bold = False
+
+            elif child.type == "em_open":
+                italic = True
+
+            elif child.type == "em_close":
+                italic = False
+
+            elif child.type == "code_inline":
+                content = child.content
+
+                if not number_checked:
+                    content = self._strip_manual_heading_number(content)
+                    number_checked = True
+
+                    if not content:
+                        continue
+
+                run = paragraph.add_run(content)
+                run.bold = bold
+                run.italic = italic
+                self._apply_code_run_style(run, block=False)
+
+            elif child.type in {"softbreak", "hardbreak"}:
+                paragraph.add_run().add_break()
+
     def _add_inline_runs(self, paragraph: Any, token: Token) -> None:
         if token.type != "inline":
             if token.content:
-                paragraph.add_run(token.content)
+                run = paragraph.add_run(token.content)
+                self._apply_inline_style_spec(run)
             return
 
         bold = False
@@ -519,6 +835,7 @@ class DocxExporter:
                 run = paragraph.add_run(child.content)
                 run.bold = bold
                 run.italic = italic
+                self._apply_inline_style_spec(run)
 
             elif child.type == "strong_open":
                 bold = True
@@ -536,12 +853,76 @@ class DocxExporter:
                 run = paragraph.add_run(child.content)
                 run.bold = bold
                 run.italic = italic
-                run.font.name = "Consolas"
-                run.font.size = Pt(9)
-                run.font.color.rgb = RGBColor(45, 45, 45)
+                self._apply_code_run_style(run, block=False)
 
             elif child.type in {"softbreak", "hardbreak"}:
                 paragraph.add_run().add_break()
+
+    def _apply_inline_style_spec(self, run: Any) -> None:
+        font_family = self._style_value(self.style_spec, "font_family")
+        font_size = self._style_value(self.style_spec, "font_size")
+
+        if font_family:
+            self._set_font_family(run.font, font_family)
+
+        if font_size:
+            run.font.size = Pt(font_size)
+
+    def _apply_code_run_style(self, run: Any, block: bool) -> None:
+        self._set_font_family(run.font, self.CODE_FONT_FAMILY)
+
+        font_size = self._style_value(self.style_spec, "font_size")
+
+        if font_size:
+            size = max(font_size - 1, 8) if block else max(font_size - 2, 8)
+            run.font.size = Pt(size)
+        else:
+            run.font.size = Pt(9)
+
+        run.font.color.rgb = RGBColor(45, 45, 45)
+
+    def _apply_style_spec_to_existing_content(self, document: Document) -> None:
+        font_family = self._style_value(self.style_spec, "font_family")
+        font_size = self._style_value(self.style_spec, "font_size")
+
+        if not font_family and not font_size:
+            return
+
+        for paragraph in document.paragraphs:
+            is_code_paragraph = paragraph.style and paragraph.style.name == "Amelie Code Block"
+
+            for run in paragraph.runs:
+                if is_code_paragraph:
+                    self._apply_code_run_style(run, block=True)
+                    continue
+
+                if font_family:
+                    self._set_font_family(run.font, font_family)
+
+                if font_size:
+                    run.font.size = Pt(font_size)
+
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            if font_family:
+                                self._set_font_family(run.font, font_family)
+
+                            if font_size:
+                                run.font.size = Pt(max(font_size - 1, 9))
+
+    def _set_font_family(self, font: Any, family: str) -> None:
+        font.name = family
+
+        if font.element.rPr is None:
+            font.element.get_or_add_rPr()
+
+        font.element.rPr.rFonts.set(qn("w:ascii"), family)
+        font.element.rPr.rFonts.set(qn("w:hAnsi"), family)
+        font.element.rPr.rFonts.set(qn("w:eastAsia"), family)
+        font.element.rPr.rFonts.set(qn("w:cs"), family)
 
     def _remove_empty_paragraph(self, paragraph: Any) -> None:
         element = paragraph._element
