@@ -4,9 +4,6 @@ from pathlib import Path
 
 import typer
 
-from amelie_md.core.encoding import read_text_with_encoding_detection
-from amelie_md.core.markdown_normalizer import normalize_markdown
-from amelie_md.core.validator import validate_markdown
 from amelie_md.core_bridge.pipeline import process_markdown_with_core
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
