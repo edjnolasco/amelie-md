@@ -369,7 +369,7 @@ class DocxExporter:
         paragraph.add_run("Página ")
         self._add_word_field(paragraph, "PAGE")
         paragraph.add_run(" de ")
-        self._add_word_field(paragraph, "NUMPAGES")
+        self._add_word_field(paragraph, "SECTIONPAGES")
 
     def _add_word_field(self, paragraph: Any, instruction_text: str) -> None:
         run = paragraph.add_run()
@@ -927,3 +927,5 @@ class DocxExporter:
     def _remove_empty_paragraph(self, paragraph: Any) -> None:
         element = paragraph._element
         element.getparent().remove(element)
+        
+        self._force_update_fields_on_open(document)
