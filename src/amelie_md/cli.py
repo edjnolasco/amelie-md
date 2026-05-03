@@ -7,6 +7,7 @@ import typer
 from amelie_md.core.encoding import read_text_with_encoding_detection
 from amelie_md.core.markdown_normalizer import normalize_markdown
 from amelie_md.core.validator import validate_markdown
+from amelie_md.core_bridge.pipeline import process_markdown_with_core
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
 from amelie_md.renderer import AmelieRenderer
@@ -27,8 +28,8 @@ def main() -> None:
 @app.command()
 def build(
     input_file: str = typer.Argument(..., help="Markdown file"),
-    to: str = typer.Option("html", help="Output format: html, pdf or docx"),
-    output: str | None = typer.Option(None, help="Output file"),
+    to: str = typer.Option("html", help="Output format: html, pdf, docx or docx-pdf"),
+    output: str | None = typer.Option(None, help="Output file or output directory for docx-pdf"),
     style: str = typer.Option(
         "academic",
         help="Document style: academic | report | readme",
@@ -36,6 +37,11 @@ def build(
     title: str | None = typer.Option(None, help="DOCX cover title"),
     author: str | None = typer.Option(None, help="DOCX cover author"),
     date: str | None = typer.Option(None, help="DOCX cover date"),
+    instructions: str | None = typer.Option(
+        None,
+        "--instructions",
+        help="Style instructions in natural language, e.g. 'Arial 12, letter, margins 1in'",
+    ),
 ) -> None:
     """
     Build a technical document from Markdown into a target format.
@@ -52,15 +58,16 @@ def build(
     if style_name not in {"academic", "report", "readme"}:
         typer.echo("❌ Supported styles: academic, report, readme")
         raise typer.Exit(code=1)
-    
+
+    markdown_text = input_path.read_text(encoding="utf-8")
+    _validate_style_instructions(markdown_text, instructions)
+
     if output_format == "docx-pdf":
         output_dir = Path(output) if output else input_path.parent
         output_dir.mkdir(parents=True, exist_ok=True)
 
         docx_output = output_dir / f"{input_path.stem}.docx"
         pdf_output = output_dir / f"{input_path.stem}.pdf"
-
-        markdown_text = input_path.read_text(encoding="utf-8")
 
         DocxExporter(
             metadata=DocxMetadata(
@@ -86,11 +93,10 @@ def build(
         typer.echo(f"✅ Built DOCX: {docx_output}")
         typer.echo(f"✅ Built PDF: {pdf_output}")
         typer.echo(f"ℹ️ Style: {style_name}")
-        return    
+        return
 
     if output_format == "docx":
         output_path = Path(output) if output else input_path.with_suffix(".docx")
-        markdown_text = input_path.read_text(encoding="utf-8")
 
         DocxExporter(
             metadata=DocxMetadata(
@@ -184,6 +190,26 @@ def normalize(
     typer.echo(f"✅ Normalized Markdown: {output_path}")
     typer.echo(f"ℹ️ Detected input encoding: {decoded.encoding}")
     typer.echo("✔ Converted to UTF-8")
+
+
+def _validate_style_instructions(markdown_text: str, instructions: str | None) -> None:
+    if not instructions:
+        return
+
+    result = process_markdown_with_core(markdown_text, instructions)
+    style_result = result.get("style")
+
+    if style_result is None:
+        return
+
+    if not style_result.is_resolved():
+        typer.echo("⚠️ Style ambiguity detected:")
+        for ambiguity in style_result.ambiguities:
+            typer.echo(f"- {ambiguity.field}: {', '.join(ambiguity.options)}")
+            typer.echo(f"  {ambiguity.message}")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"✔ Style instructions resolved: {style_result.spec}")
 
 
 def _validate_input_file(input_file: str) -> Path:
