@@ -67,7 +67,6 @@ class DocxImporter:
 
         style_name = paragraph.style.name if paragraph.style else ""
 
-        # 1. Heading real de Word
         style_heading_level = self._detect_heading_level_from_style(style_name)
         if style_heading_level is not None:
             return DocumentBlock(
@@ -76,7 +75,6 @@ class DocxImporter:
                 level=style_heading_level,
             )
 
-        # 2. Lista nativa Word (numPr)
         word_list = self._detect_word_list_item(document, paragraph)
         if word_list:
             ordered, indent = word_list
@@ -86,69 +84,6 @@ class DocxImporter:
                 ordered=ordered,
                 indent=indent,
             )
-
-        # 3. Lista por estilo (fallback real)
-        if style_name.lower().strip() == "list paragraph":
-            return DocumentBlock(
-                type="list_item",
-                text=text,
-                ordered=False,
-                indent=0,
-            )
-
-        # 4. Lista manual (•, 1), etc.)
-        list_item = self._detect_list_item(paragraph.text)
-        if list_item:
-            _, ordered, clean_text, indent = list_item
-            return DocumentBlock(
-                type="list_item",
-                text=clean_text,
-                ordered=ordered,
-                indent=indent,
-            )
-
-        # 5. Heading por regex
-        heading_level = self._detect_heading_level_from_text(text)
-        if heading_level is not None:
-            return DocumentBlock(
-                type="heading",
-                text=text,
-                level=heading_level,
-            )
-
-        # 6. Código
-        if self._looks_like_code(paragraph):
-            return DocumentBlock(
-                type="code",
-                text=paragraph.text,
-                language=None,
-            )
-
-        # 7. Párrafo normal
-        return DocumentBlock(
-            type="paragraph",
-            text=text,
-        )
-
-    def _looks_like_ordered_list_text(self, text: str) -> bool:
-        normalized = text.lower().strip()
-
-        ordered_starters = (
-            "primer ",
-            "segundo ",
-            "tercer ",
-            "cuarto ",
-            "quinto ",
-            "sexto ",
-            "séptimo ",
-            "septimo ",
-            "octavo ",
-            "noveno ",
-            "décimo ",
-            "decimo ",
-        )
-
-        return normalized.startswith(ordered_starters)
 
         list_item = self._detect_list_item(paragraph.text)
         if list_item:
@@ -382,23 +317,62 @@ class DocxImporter:
         paragraph: Any,
     ) -> tuple[bool, int] | None:
         paragraph_properties = paragraph._element.pPr
+        style_name = paragraph.style.name.lower().strip() if paragraph.style else ""
 
-        if paragraph_properties is None or paragraph_properties.numPr is None:
-            return None
+        if paragraph_properties is not None:
+            num_pr = paragraph_properties.numPr
 
-        num_pr = paragraph_properties.numPr
-        num_id_element = num_pr.numId
-        ilvl_element = num_pr.ilvl
+            if num_pr is not None and num_pr.numId is not None:
+                ilvl_element = num_pr.ilvl
+                indent = int(ilvl_element.val) if ilvl_element is not None else 0
+                num_id = str(num_pr.numId.val)
+                ordered = self._is_ordered_word_list(document, num_id, indent)
 
-        if num_id_element is None:
-            return None
+                return ordered, indent
 
-        num_id = num_id_element.val
-        indent = int(ilvl_element.val) if ilvl_element is not None else 0
+        if style_name == "list paragraph":
+            indent = self._detect_paragraph_indent_level(paragraph)
+            ordered = self._infer_ordered_list_from_paragraph(paragraph)
+            return ordered, indent
 
-        ordered = self._is_ordered_word_list(document, str(num_id), indent)
+        return None
 
-        return ordered, indent
+    def _detect_paragraph_indent_level(self, paragraph: Any) -> int:
+        left_indent = paragraph.paragraph_format.left_indent
+
+        if left_indent is None:
+            return 0
+
+        inches = left_indent / 914400
+
+        if inches < 0.4:
+            return 0
+        if inches < 0.8:
+            return 1
+        if inches < 1.2:
+            return 2
+
+        return 3
+
+    def _infer_ordered_list_from_paragraph(self, paragraph: Any) -> bool:
+        text = paragraph.text.lower().strip()
+
+        ordered_words = (
+            "primer ",
+            "segundo ",
+            "tercer ",
+            "cuarto ",
+            "quinto ",
+            "sexto ",
+            "séptimo ",
+            "septimo ",
+            "octavo ",
+            "noveno ",
+            "décimo ",
+            "decimo ",
+        )
+
+        return text.startswith(ordered_words)
 
     def _is_ordered_word_list(
         self,
