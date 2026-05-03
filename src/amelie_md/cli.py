@@ -60,8 +60,26 @@ def build(
         raise typer.Exit(code=1)
 
     markdown_text = input_path.read_text(encoding="utf-8")
-    _validate_style_instructions(markdown_text, instructions)
 
+    # 🔴 RESOLUCIÓN REAL DEL STYLE SPEC
+    style_spec = None
+    if instructions:
+        result = process_markdown_with_core(markdown_text, instructions)
+        style_result = result.get("style")
+
+        if style_result and style_result.is_resolved():
+            style_spec = style_result.spec
+            typer.echo(f"✔ Style instructions resolved: {style_spec}")
+        elif style_result:
+            typer.echo("⚠️ Style ambiguity detected:")
+            for ambiguity in style_result.ambiguities:
+                typer.echo(f"- {ambiguity.field}: {', '.join(ambiguity.options)}")
+                typer.echo(f"  {ambiguity.message}")
+            raise typer.Exit(code=1)
+
+    # ---------------------------
+    # DOCX + PDF
+    # ---------------------------
     if output_format == "docx-pdf":
         output_dir = Path(output) if output else input_path.parent
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -76,6 +94,7 @@ def build(
                 date=date,
             ),
             style=style_name,
+            style_spec=style_spec,
         ).export(
             markdown_text=markdown_text,
             output_path=docx_output,
@@ -95,6 +114,9 @@ def build(
         typer.echo(f"ℹ️ Style: {style_name}")
         return
 
+    # ---------------------------
+    # DOCX
+    # ---------------------------
     if output_format == "docx":
         output_path = Path(output) if output else input_path.with_suffix(".docx")
 
@@ -105,6 +127,7 @@ def build(
                 date=date,
             ),
             style=style_name,
+            style_spec=style_spec,
         ).export(
             markdown_text=markdown_text,
             output_path=output_path,
@@ -114,6 +137,9 @@ def build(
         typer.echo(f"ℹ️ Style: {style_name}")
         return
 
+    # ---------------------------
+    # HTML / PDF
+    # ---------------------------
     renderer = _create_renderer(style_name)
 
     if output_format == "html":
@@ -134,84 +160,7 @@ def build(
 
     typer.echo(f"✅ Built PDF: {output_path}")
     typer.echo(f"ℹ️ Style: {style_name}")
-
-
-@app.command()
-def validate(
-    input_file: str = typer.Argument(..., help="Markdown file"),
-    profile: str = typer.Option(
-        "technical",
-        help="Validation profile: technical | readme | academic",
-    ),
-) -> None:
-    """
-    Validate Markdown structure and metadata.
-    """
-
-    input_path = _validate_input_file(input_file)
-    markdown_text = input_path.read_text(encoding="utf-8")
-
-    report = validate_markdown(markdown_text, profile=profile)
-
-    if not report.issues:
-        typer.echo("✅ No validation issues found.")
-        return
-
-    for issue in report.issues:
-        icon = "❌" if issue.severity == "error" else "⚠️"
-        typer.echo(f"{icon} [{issue.code}] {issue.message}")
-
-    if report.has_errors:
-        raise typer.Exit(code=1)
-
-
-@app.command()
-def normalize(
-    input_file: str = typer.Argument(..., help="Markdown file"),
-    output: str | None = typer.Option(None, help="Output Markdown file"),
-) -> None:
-    """
-    Normalize a Markdown file and write a clean Markdown output.
-    """
-
-    input_path = _validate_input_file(input_file)
-    decoded = read_text_with_encoding_detection(input_path)
-
-    normalized = normalize_markdown(
-        decoded.text,
-        input_path=input_path,
-        repair_encoding=True,
-    )
-
-    output_path = Path(output) if output else input_path.with_name(f"{input_path.stem}_clean.md")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(normalized, encoding="utf-8")
-
-    typer.echo(f"✅ Normalized Markdown: {output_path}")
-    typer.echo(f"ℹ️ Detected input encoding: {decoded.encoding}")
-    typer.echo("✔ Converted to UTF-8")
-
-
-def _validate_style_instructions(markdown_text: str, instructions: str | None) -> None:
-    if not instructions:
-        return
-
-    result = process_markdown_with_core(markdown_text, instructions)
-    style_result = result.get("style")
-
-    if style_result is None:
-        return
-
-    if not style_result.is_resolved():
-        typer.echo("⚠️ Style ambiguity detected:")
-        for ambiguity in style_result.ambiguities:
-            typer.echo(f"- {ambiguity.field}: {', '.join(ambiguity.options)}")
-            typer.echo(f"  {ambiguity.message}")
-        raise typer.Exit(code=1)
-
-    typer.echo(f"✔ Style instructions resolved: {style_result.spec}")
-
-
+    
 def _validate_input_file(input_file: str) -> Path:
     input_path = Path(input_file)
 
@@ -237,8 +186,4 @@ def _create_renderer(style_name: str = "academic") -> AmelieRenderer:
     return AmelieRenderer(
         template_dir=base_dir / "templates",
         style_path=style_path,
-    )
-
-
-if __name__ == "__main__":
-    app()
+    )   
