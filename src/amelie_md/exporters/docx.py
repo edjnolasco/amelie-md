@@ -13,8 +13,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
-from markdown_it import MarkdownIt
-from markdown_it.token import Token
 
 from amelie_md.styles.docx import AcademicDocxStyle
 
@@ -27,7 +25,13 @@ class DocxMetadata:
 
 
 class DocxExporter:
-    """Professional DOCX exporter for Amelie MD."""
+    """Professional DOCX exporter for Amelie MD.
+
+    v1.2:
+    - Renders AmelieDocument directly.
+    - Removes MarkdownIt as intermediate renderer.
+    - Keeps academic styling, cover, pagination, TOC, tables and code blocks.
+    """
 
     MANUAL_HEADING_NUMBER_RE = re.compile(
         r"^\s*(?:\d+(?:\.\d+)*\.?|[IVXLCDM]+\.|[A-Z]\.)\s+",
@@ -46,10 +50,26 @@ class DocxExporter:
         self.style = style.lower().strip()
         self.style_spec = style_spec
 
-        self.parser = MarkdownIt("commonmark").enable("table")
         self.heading_num_id: int | None = None
+        self._ordered_list_stack: list[int] = []
 
-    def export(self, markdown_text: str, output_path: str | Path) -> Path:
+    def export(self, document: Any, output_path: str | Path) -> Path:
+        """Backward-compatible public entry point.
+
+        In v1.2, this method expects an AmelieDocument-like object with
+        a `.blocks` attribute. Markdown strings are intentionally rejected
+        because Markdown is no longer used as an intermediate representation.
+        """
+        if isinstance(document, str):
+            raise TypeError(
+                "DocxExporter.export() no longer accepts Markdown text in v1.2. "
+                "Pass an AmelieDocument instance or use export_document(document, output_path)."
+            )
+
+        return self.export_document(document, output_path)
+
+    def export_document(self, amelie_document: Any, output_path: str | Path) -> Path:
+        """Render an AmelieDocument directly to DOCX."""
         path = Path(output_path)
         document = Document()
 
@@ -59,16 +79,17 @@ class DocxExporter:
         self._apply_academic_spacing(document)
 
         self.heading_num_id = self._ensure_heading_numbering(document)
+        self._ordered_list_stack = []
 
         if self._has_cover():
             self._add_cover(document)
             self._configure_content_section_pagination(document)
 
-        tokens = self.parser.parse(markdown_text)
-        self._render_tokens(document, tokens)
+        blocks = self._document_blocks(amelie_document)
 
-        # Final pass: sections, styles, and dynamic runs/tables must reflect
-        # instructions after rendering all content.
+        for block in blocks:
+            self._render_block(document, block)
+
         if self.style_spec:
             self._apply_style_spec(document, self.style_spec)
             self._apply_academic_spacing(document)
@@ -77,6 +98,251 @@ class DocxExporter:
         path.parent.mkdir(parents=True, exist_ok=True)
         document.save(path)
         return path
+
+    def _document_blocks(self, amelie_document: Any) -> list[Any]:
+        blocks = self._value(amelie_document, "blocks", default=None)
+
+        if blocks is None:
+            raise TypeError(
+                "export_document() expects an AmelieDocument-like object "
+                "with a `.blocks` attribute."
+            )
+
+        return list(blocks)
+
+    def _render_block(self, document: Document, block: Any) -> None:
+        block_type = self._block_type(block)
+
+        if block_type != "list_item":
+            self._ordered_list_stack = []
+
+        if block_type == "heading":
+            self._render_heading_block(document, block)
+            return
+
+        if block_type == "paragraph":
+            self._render_paragraph_block(document, block)
+            return
+
+        if block_type == "list_item":
+            self._render_list_item_block(document, block)
+            return
+
+        if block_type == "table":
+            self._render_table_block(document, block)
+            return
+
+        if block_type == "code":
+            self._render_code_block(document, block)
+            return
+
+        if block_type == "toc":
+            self._add_toc(document)
+            return
+
+        # Safe fallback: unknown blocks become paragraphs if they expose text.
+        text = self._block_text(block)
+        if text:
+            paragraph = document.add_paragraph(style="Normal")
+            self._add_plain_text_runs(paragraph, text)
+
+    def _block_type(self, block: Any) -> str:
+        value = (
+            self._value(block, "type", default=None)
+            or self._value(block, "kind", default=None)
+            or self._value(block, "block_type", default=None)
+        )
+
+        return str(value or "").lower().strip()
+
+    def _render_heading_block(self, document: Document, block: Any) -> None:
+        level = int(self._value(block, "level", default=1) or 1)
+        level = max(1, min(level, 3))
+
+        text = self._strip_manual_heading_number(self._block_text(block))
+
+        paragraph = document.add_heading(level=level)
+
+        if self.heading_num_id is not None:
+            self._apply_heading_numbering(paragraph, level, self.heading_num_id)
+
+        self._add_plain_text_runs(paragraph, text)
+
+    def _render_paragraph_block(self, document: Document, block: Any) -> None:
+        text = self._block_text(block)
+
+        if text.strip() == "[[TOC]]":
+            self._add_toc(document)
+            return
+
+        paragraph = document.add_paragraph(style="Normal")
+        self._add_plain_text_runs(paragraph, text)
+
+        if not paragraph.text.strip():
+            self._remove_empty_paragraph(paragraph)
+
+    def _render_list_item_block(self, document: Document, block: Any) -> None:
+        text = self._block_text(block)
+        ordered = bool(self._value(block, "ordered", default=False))
+        level = int(
+            self._value(block, "level", default=None)
+            if self._value(block, "level", default=None) is not None
+            else self._value(block, "indent", default=0)
+        )
+        level = max(level, 0)
+
+        paragraph = document.add_paragraph(style="Normal")
+        paragraph.paragraph_format.left_indent = Inches(0.32 * (level + 1))
+        paragraph.paragraph_format.first_line_indent = Inches(-0.18)
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(3)
+
+        if ordered:
+            marker = self._ordered_marker(self._next_ordered_numbers(level))
+        else:
+            marker = self._bullet_marker(level)
+
+        marker_run = paragraph.add_run(marker)
+        marker_run.bold = False
+        self._apply_inline_style_spec(marker_run)
+
+        self._add_plain_text_runs(paragraph, text)
+
+    def _next_ordered_numbers(self, level: int) -> tuple[int, ...]:
+        while len(self._ordered_list_stack) <= level:
+            self._ordered_list_stack.append(0)
+
+        self._ordered_list_stack[level] += 1
+        del self._ordered_list_stack[level + 1 :]
+
+        return tuple(self._ordered_list_stack[: level + 1])
+
+    def _ordered_marker(self, numbers: tuple[int, ...]) -> str:
+        if not numbers:
+            return "1. "
+
+        return ".".join(str(number) for number in numbers) + ". "
+
+    def _bullet_marker(self, level: int) -> str:
+        markers = ("• ", "◦ ", "▪ ")
+        return markers[level % len(markers)]
+
+    def _render_table_block(self, document: Document, block: Any) -> None:
+        rows = self._table_rows(block)
+
+        if not rows:
+            return
+
+        column_count = max(len(row) for row in rows)
+        table = document.add_table(rows=len(rows), cols=column_count)
+        table.style = "Table Grid"
+        table.autofit = True
+
+        for row_index, row in enumerate(rows):
+            for column_index in range(column_count):
+                value = row[column_index] if column_index < len(row) else ""
+                cell = table.cell(row_index, column_index)
+                cell.text = str(value)
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+                self._set_cell_margins(cell)
+
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.space_before = Pt(0)
+                    paragraph.paragraph_format.space_after = Pt(0)
+
+                    if row_index == 0:
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    elif self._looks_numeric(str(value)):
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    else:
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+                    for run in paragraph.runs:
+                        self._apply_run_font_from_spec(run)
+
+                        if row_index == 0:
+                            run.bold = True
+                            run.font.color.rgb = RGBColor(255, 255, 255)
+
+                if row_index == 0:
+                    self._set_cell_shading(cell, "1F4E79")
+
+        document.add_paragraph()
+
+    def _table_rows(self, block: Any) -> list[list[str]]:
+        rows = self._value(block, "rows", default=None)
+
+        if rows is None:
+            rows = self._value(block, "data", default=None)
+
+        if rows is None:
+            return []
+
+        normalized_rows: list[list[str]] = []
+
+        for row in rows:
+            if isinstance(row, dict):
+                cells = row.get("cells", [])
+            else:
+                cells = self._value(row, "cells", default=row)
+
+            normalized_rows.append([str(self._cell_text(cell)) for cell in cells])
+
+        return normalized_rows
+
+    def _cell_text(self, cell: Any) -> str:
+        if isinstance(cell, str):
+            return cell
+
+        if isinstance(cell, (int, float)):
+            return str(cell)
+
+        return str(
+            self._value(cell, "text", default=None)
+            or self._value(cell, "content", default="")
+        )
+
+    def _render_code_block(self, document: Document, block: Any) -> None:
+        code = (
+            self._value(block, "code", default=None)
+            or self._value(block, "content", default=None)
+            or self._value(block, "text", default="")
+        )
+
+        self._add_code_block(document, str(code))
+
+    def _block_text(self, block: Any) -> str:
+        value = (
+            self._value(block, "text", default=None)
+            or self._value(block, "content", default=None)
+            or self._value(block, "value", default="")
+        )
+
+        return str(value or "")
+
+    def _value(self, obj: Any, name: str, default: Any = None) -> Any:
+        if obj is None:
+            return default
+
+        if isinstance(obj, dict):
+            return obj.get(name, default)
+
+        return getattr(obj, name, default)
+
+    def _add_plain_text_runs(self, paragraph: Any, text: str) -> None:
+        lines = str(text).splitlines()
+
+        if not lines:
+            return
+
+        for index, line in enumerate(lines):
+            if index > 0:
+                paragraph.add_run().add_break()
+
+            if line:
+                run = paragraph.add_run(line)
+                self._apply_inline_style_spec(run)
 
     def _configure_document(self, document: Document) -> None:
         section = document.sections[0]
@@ -254,7 +520,11 @@ class DocxExporter:
             return Inches(default)
 
         normalized = str(value).lower().strip().replace('"', "").replace("inches", "in")
-        normalized = normalized.replace("inch", "in").replace("pulgadas", "in").replace("pulgada", "in")
+        normalized = (
+            normalized.replace("inch", "in")
+            .replace("pulgadas", "in")
+            .replace("pulgada", "in")
+        )
 
         if normalized.endswith("in"):
             normalized = normalized.removesuffix("in").strip()
@@ -397,262 +667,6 @@ class DocxExporter:
     def _clear_paragraph(self, paragraph: Any) -> None:
         for run in list(paragraph.runs):
             paragraph._element.remove(run._element)
-
-    def _render_tokens(self, document: Document, tokens: list[Token]) -> None:
-        index = 0
-
-        while index < len(tokens):
-            token = tokens[index]
-
-            if token.type == "heading_open":
-                level = min(int(token.tag.removeprefix("h")), 3)
-                paragraph = document.add_heading(level=level)
-
-                if self.heading_num_id is not None:
-                    self._apply_heading_numbering(paragraph, level, self.heading_num_id)
-
-                self._add_heading_inline_runs(paragraph, tokens[index + 1])
-                index += 3
-                continue
-
-            if token.type == "paragraph_open":
-                inline = tokens[index + 1]
-
-                if self._is_toc_token(inline):
-                    self._add_toc(document)
-                    index += 3
-                    continue
-
-                paragraph = document.add_paragraph(style="Normal")
-                self._add_inline_runs(paragraph, inline)
-
-                if not paragraph.text.strip():
-                    self._remove_empty_paragraph(paragraph)
-
-                index += 3
-                continue
-
-            if token.type == "bullet_list_open":
-                index = self._render_list(
-                    document=document,
-                    tokens=tokens,
-                    start_index=index,
-                    ordered=False,
-                    level=0,
-                )
-                continue
-
-            if token.type == "ordered_list_open":
-                index = self._render_list(
-                    document=document,
-                    tokens=tokens,
-                    start_index=index,
-                    ordered=True,
-                    level=0,
-                )
-                continue
-
-            if token.type == "fence":
-                self._add_code_block(document, token.content)
-                index += 1
-                continue
-
-            if token.type == "table_open":
-                index = self._render_table(document, tokens, index)
-                continue
-
-            index += 1
-
-    def _render_list(
-        self,
-        document: Document,
-        tokens: list[Token],
-        start_index: int,
-        ordered: bool,
-        level: int = 0,
-        parent_numbers: tuple[int, ...] | None = None,
-    ) -> int:
-        """Render Markdown lists with deterministic manual markers.
-
-        This avoids Word's built-in list styles, which can continue numbering
-        unexpectedly across unrelated lists. Ordered lists preserve hierarchical
-        numbering for nested structures, for example: 1., 1.1., 1.1.1.
-        """
-        index = start_index + 1
-        item_number = 1
-        parent_numbers = parent_numbers or ()
-
-        while index < len(tokens):
-            token = tokens[index]
-
-            if token.type in {"bullet_list_close", "ordered_list_close"}:
-                return index + 1
-
-            if token.type == "list_item_open":
-                index, item_number = self._render_list_item(
-                    document=document,
-                    tokens=tokens,
-                    start_index=index + 1,
-                    ordered=ordered,
-                    level=level,
-                    item_number=item_number,
-                    parent_numbers=parent_numbers,
-                )
-                continue
-
-            index += 1
-
-        return index
-
-    def _render_list_item(
-        self,
-        document: Document,
-        tokens: list[Token],
-        start_index: int,
-        ordered: bool,
-        level: int,
-        item_number: int,
-        parent_numbers: tuple[int, ...],
-    ) -> tuple[int, int]:
-        index = start_index
-        current_numbers = (
-            parent_numbers + (item_number,)
-            if ordered
-            else parent_numbers
-        )
-
-        while index < len(tokens):
-            token = tokens[index]
-
-            if token.type == "list_item_close":
-                return index + 1, item_number + 1
-
-            if token.type == "paragraph_open":
-                inline = tokens[index + 1]
-
-                paragraph = document.add_paragraph(style="Normal")
-                paragraph.paragraph_format.left_indent = Inches(0.32 * (level + 1))
-                paragraph.paragraph_format.first_line_indent = Inches(-0.18)
-                paragraph.paragraph_format.space_before = Pt(0)
-                paragraph.paragraph_format.space_after = Pt(3)
-
-                marker = (
-                    self._ordered_marker(current_numbers)
-                    if ordered
-                    else self._bullet_marker(level)
-                )
-
-                marker_run = paragraph.add_run(marker)
-                marker_run.bold = False
-                self._apply_inline_style_spec(marker_run)
-
-                self._add_inline_runs(paragraph, inline)
-
-                index += 3
-                continue
-
-            if token.type == "bullet_list_open":
-                index = self._render_list(
-                    document=document,
-                    tokens=tokens,
-                    start_index=index,
-                    ordered=False,
-                    level=level + 1,
-                    parent_numbers=current_numbers,
-                )
-                continue
-
-            if token.type == "ordered_list_open":
-                index = self._render_list(
-                    document=document,
-                    tokens=tokens,
-                    start_index=index,
-                    ordered=True,
-                    level=level + 1,
-                    parent_numbers=current_numbers,
-                )
-                continue
-
-            index += 1
-
-        return index, item_number
-
-    def _ordered_marker(self, numbers: tuple[int, ...]) -> str:
-        if not numbers:
-            return "1. "
-
-        return ".".join(str(number) for number in numbers) + ". "
-
-    def _bullet_marker(self, level: int) -> str:
-        markers = ("• ", "◦ ", "▪ ")
-        return markers[level % len(markers)]
-
-    def _render_table(
-        self,
-        document: Document,
-        tokens: list[Token],
-        start_index: int,
-    ) -> int:
-        rows: list[list[str]] = []
-        current_row: list[str] = []
-        index = start_index + 1
-
-        while index < len(tokens):
-            token = tokens[index]
-
-            if token.type == "table_close":
-                break
-
-            if token.type == "tr_open":
-                current_row = []
-
-            elif token.type in {"th_open", "td_open"}:
-                current_row.append(self._inline_text(tokens[index + 1]))
-
-            elif token.type == "tr_close":
-                rows.append(current_row)
-
-            index += 1
-
-        if rows:
-            column_count = max(len(row) for row in rows)
-            table = document.add_table(rows=len(rows), cols=column_count)
-            table.style = "Table Grid"
-            table.autofit = True
-
-            for row_index, row in enumerate(rows):
-                for column_index in range(column_count):
-                    value = row[column_index] if column_index < len(row) else ""
-                    cell = table.cell(row_index, column_index)
-                    cell.text = value
-                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-
-                    self._set_cell_margins(cell)
-
-                    for paragraph in cell.paragraphs:
-                        paragraph.paragraph_format.space_before = Pt(0)
-                        paragraph.paragraph_format.space_after = Pt(0)
-
-                        if row_index == 0:
-                            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        elif self._looks_numeric(value):
-                            paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                        else:
-                            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-
-                        for run in paragraph.runs:
-                            self._apply_run_font_from_spec(run)
-
-                            if row_index == 0:
-                                run.bold = True
-                                run.font.color.rgb = RGBColor(255, 255, 255)
-
-                    if row_index == 0:
-                        self._set_cell_shading(cell, "1F4E79")
-
-            document.add_paragraph()
-
-        return index + 1
 
     def _apply_run_font_from_spec(self, run: Any) -> None:
         font_family = self._style_value(self.style_spec, "font_family")
@@ -845,124 +859,8 @@ class DocxExporter:
             run = paragraph.add_run(line)
             self._apply_code_run_style(run, block=True)
 
-    def _is_toc_token(self, token: Token) -> bool:
-        if token.type != "inline":
-            return False
-
-        return self._inline_text(token).strip() == "[[TOC]]"
-
-    def _inline_text(self, token: Token) -> str:
-        if token.type != "inline":
-            return token.content.strip()
-
-        parts: list[str] = []
-
-        for child in token.children or []:
-            if child.type in {"text", "code_inline"}:
-                parts.append(child.content)
-            elif child.type in {"softbreak", "hardbreak"}:
-                parts.append("\n")
-
-        return "".join(parts).strip()
-
     def _strip_manual_heading_number(self, text: str) -> str:
         return self.MANUAL_HEADING_NUMBER_RE.sub("", text, count=1)
-
-    def _add_heading_inline_runs(self, paragraph: Any, token: Token) -> None:
-        if token.type != "inline":
-            cleaned = self._strip_manual_heading_number(token.content)
-            if cleaned:
-                run = paragraph.add_run(cleaned)
-                self._apply_inline_style_spec(run)
-            return
-
-        bold = False
-        italic = False
-        number_checked = False
-
-        for child in token.children or []:
-            if child.type == "text":
-                content = child.content
-
-                if not number_checked:
-                    content = self._strip_manual_heading_number(content)
-                    number_checked = True
-
-                    if not content:
-                        continue
-
-                run = paragraph.add_run(content)
-                run.bold = bold
-                run.italic = italic
-                self._apply_inline_style_spec(run)
-
-            elif child.type == "strong_open":
-                bold = True
-
-            elif child.type == "strong_close":
-                bold = False
-
-            elif child.type == "em_open":
-                italic = True
-
-            elif child.type == "em_close":
-                italic = False
-
-            elif child.type == "code_inline":
-                content = child.content
-
-                if not number_checked:
-                    content = self._strip_manual_heading_number(content)
-                    number_checked = True
-
-                    if not content:
-                        continue
-
-                run = paragraph.add_run(content)
-                run.bold = bold
-                run.italic = italic
-                self._apply_code_run_style(run, block=False)
-
-            elif child.type in {"softbreak", "hardbreak"}:
-                paragraph.add_run().add_break()
-
-    def _add_inline_runs(self, paragraph: Any, token: Token) -> None:
-        if token.type != "inline":
-            if token.content:
-                run = paragraph.add_run(token.content)
-                self._apply_inline_style_spec(run)
-            return
-
-        bold = False
-        italic = False
-
-        for child in token.children or []:
-            if child.type == "text":
-                run = paragraph.add_run(child.content)
-                run.bold = bold
-                run.italic = italic
-                self._apply_inline_style_spec(run)
-
-            elif child.type == "strong_open":
-                bold = True
-
-            elif child.type == "strong_close":
-                bold = False
-
-            elif child.type == "em_open":
-                italic = True
-
-            elif child.type == "em_close":
-                italic = False
-
-            elif child.type == "code_inline":
-                run = paragraph.add_run(child.content)
-                run.bold = bold
-                run.italic = italic
-                self._apply_code_run_style(run, block=False)
-
-            elif child.type in {"softbreak", "hardbreak"}:
-                paragraph.add_run().add_break()
 
     def _apply_inline_style_spec(self, run: Any) -> None:
         font_family = self._style_value(self.style_spec, "font_family")
