@@ -8,7 +8,6 @@ from amelie_md.core_bridge.pipeline import process_markdown_with_core
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
 from amelie_md.renderer import AmelieRenderer
-from amelie_md.document import AmelieDocument  # 🔥 NUEVO
 
 app = typer.Typer(
     help="Amelie MD - Document normalizer and publisher",
