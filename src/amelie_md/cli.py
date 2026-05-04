@@ -109,7 +109,7 @@ def build(
         )
 
         renderer = _create_renderer(style_name)
-        html = renderer.render_to_html_string(input_path)
+        html = renderer.render_document_to_html_string(document_model)
 
         PdfExporter().export(
             html=html,
@@ -158,7 +158,7 @@ def build(
         return
 
     output_path = Path(output) if output else input_path.with_suffix(".pdf")
-    html = renderer.render_to_html_string(input_path)
+    html = renderer.render_document_to_html_string(document_model)
 
     PdfExporter().export(
         html=html,

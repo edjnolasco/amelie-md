@@ -26,9 +26,11 @@
     </section>
 
     {% if toc %}
-    <section class="toc">
+    <section class="toc" role="doc-toc">
         <h2>Tabla de contenido</h2>
-        {{ toc | safe }}
+        <nav class="toc-nav">
+            {{ toc | safe }}
+        </nav>
     </section>
     {% endif %}
 

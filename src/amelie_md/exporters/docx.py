@@ -113,6 +113,27 @@ class DocxExporter:
     def _render_block(self, document: Document, block: Any) -> None:
         block_type = self._block_type(block)
 
+        # Defensive cleanup: avoid rendering empty structural residues,
+        # especially empty list items that appear as bullets in TOC/PDF output.
+        if block_type in {"heading", "paragraph", "list_item"}:
+            text = self._block_text(block).strip()
+            if not text:
+                return
+
+        if block_type == "code":
+            code = str(
+                self._value(block, "code", default=None)
+                or self._value(block, "content", default=None)
+                or self._value(block, "text", default="")
+            ).strip()
+            if not code:
+                return
+
+        if block_type == "table":
+            rows = self._table_rows(block)
+            if not rows:
+                return
+
         if block_type != "list_item":
             self._ordered_list_stack = []
 
@@ -141,7 +162,7 @@ class DocxExporter:
             return
 
         # Safe fallback: unknown blocks become paragraphs if they expose text.
-        text = self._block_text(block)
+        text = self._block_text(block).strip()
         if text:
             paragraph = document.add_paragraph(style="Normal")
             self._add_plain_text_runs(paragraph, text)
