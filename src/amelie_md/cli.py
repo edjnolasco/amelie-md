@@ -8,6 +8,7 @@ from amelie_md.core_bridge.pipeline import process_markdown_with_core
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
 from amelie_md.renderer import AmelieRenderer
+from amelie_md.document import AmelieDocument  # 🔥 NUEVO
 
 app = typer.Typer(
     help="Amelie MD - Document normalizer and publisher",
@@ -37,7 +38,7 @@ def build(
     instructions: str | None = typer.Option(
         None,
         "--instructions",
-        help="Style instructions in natural language, e.g. 'Arial 12, letter, margins 1in'",
+        help="Style instructions in natural language",
     ),
 ) -> None:
     """
@@ -58,21 +59,31 @@ def build(
 
     markdown_text = input_path.read_text(encoding="utf-8")
 
-    # 🔴 RESOLUCIÓN REAL DEL STYLE SPEC
-    style_spec = None
-    if instructions:
-        result = process_markdown_with_core(markdown_text, instructions)
-        style_result = result.get("style")
+    # ---------------------------
+    # 🔥 NUEVO: Markdown → AmelieDocument
+    # ---------------------------
+    result = process_markdown_with_core(markdown_text, instructions)
+    document_model = result.get("document")
 
-        if style_result and style_result.is_resolved():
-            style_spec = style_result.spec
-            typer.echo(f"✔ Style instructions resolved: {style_spec}")
-        elif style_result:
-            typer.echo("⚠️ Style ambiguity detected:")
-            for ambiguity in style_result.ambiguities:
-                typer.echo(f"- {ambiguity.field}: {', '.join(ambiguity.options)}")
-                typer.echo(f"  {ambiguity.message}")
-            raise typer.Exit(code=1)
+    if document_model is None:
+        typer.echo("❌ Failed to build document model from Markdown")
+        raise typer.Exit(code=1)
+
+    # ---------------------------
+    # StyleSpec
+    # ---------------------------
+    style_spec = None
+    style_result = result.get("style")
+
+    if style_result and style_result.is_resolved():
+        style_spec = style_result.spec
+        typer.echo(f"✔ Style instructions resolved: {style_spec}")
+    elif style_result and instructions:
+        typer.echo("⚠️ Style ambiguity detected:")
+        for ambiguity in style_result.ambiguities:
+            typer.echo(f"- {ambiguity.field}: {', '.join(ambiguity.options)}")
+            typer.echo(f"  {ambiguity.message}")
+        raise typer.Exit(code=1)
 
     # ---------------------------
     # DOCX + PDF
@@ -92,9 +103,9 @@ def build(
             ),
             style=style_name,
             style_spec=style_spec,
-        ).export(
-            markdown_text=markdown_text,
-            output_path=docx_output,
+        ).export_document(  # 🔥 CAMBIO CLAVE
+            document_model,
+            docx_output,
         )
 
         renderer = _create_renderer(style_name)
@@ -125,9 +136,9 @@ def build(
             ),
             style=style_name,
             style_spec=style_spec,
-        ).export(
-            markdown_text=markdown_text,
-            output_path=output_path,
+        ).export_document(  # 🔥 CAMBIO CLAVE
+            document_model,
+            output_path,
         )
 
         typer.echo(f"✅ Built DOCX: {output_path}")
@@ -135,7 +146,7 @@ def build(
         return
 
     # ---------------------------
-    # HTML / PDF
+    # HTML / PDF (sin cambios)
     # ---------------------------
     renderer = _create_renderer(style_name)
 
@@ -157,7 +168,8 @@ def build(
 
     typer.echo(f"✅ Built PDF: {output_path}")
     typer.echo(f"ℹ️ Style: {style_name}")
-    
+
+
 def _validate_input_file(input_file: str) -> Path:
     input_path = Path(input_file)
 
@@ -183,4 +195,4 @@ def _create_renderer(style_name: str = "academic") -> AmelieRenderer:
     return AmelieRenderer(
         template_dir=base_dir / "templates",
         style_path=style_path,
-    )   
+    )
