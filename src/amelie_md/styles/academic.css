@@ -216,3 +216,29 @@ ul ul li {
 ol li {
     list-style-type: decimal;
 }
+
+/* =========================
+   Amelie TOC
+   ========================= */
+
+.amelie-toc {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.amelie-toc li {
+    list-style: none;
+    margin: 0 0 0.35rem 0;
+    padding: 0;
+}
+
+.amelie-toc a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.toc ul,
+.toc li {
+    list-style: none;
+}
