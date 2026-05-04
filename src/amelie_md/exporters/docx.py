@@ -369,7 +369,7 @@ class DocxExporter:
         paragraph.add_run("Página ")
         self._add_word_field(paragraph, "PAGE")
         paragraph.add_run(" de ")
-        self._add_word_field(paragraph, "NUMPAGES")
+        self._add_word_field(paragraph, "SECTIONPAGES")
 
     def _add_word_field(self, paragraph: Any, instruction_text: str) -> None:
         run = paragraph.add_run()
@@ -433,11 +433,23 @@ class DocxExporter:
                 continue
 
             if token.type == "bullet_list_open":
-                index = self._render_list(document, tokens, index, ordered=False)
+                index = self._render_list(
+                    document=document,
+                    tokens=tokens,
+                    start_index=index,
+                    ordered=False,
+                    level=0,
+                )
                 continue
 
             if token.type == "ordered_list_open":
-                index = self._render_list(document, tokens, index, ordered=True)
+                index = self._render_list(
+                    document=document,
+                    tokens=tokens,
+                    start_index=index,
+                    ordered=True,
+                    level=0,
+                )
                 continue
 
             if token.type == "fence":
@@ -457,9 +469,18 @@ class DocxExporter:
         tokens: list[Token],
         start_index: int,
         ordered: bool,
+        level: int = 0,
+        parent_numbers: tuple[int, ...] | None = None,
     ) -> int:
-        style = "List Number" if ordered else "List Bullet"
+        """Render Markdown lists with deterministic manual markers.
+
+        This avoids Word's built-in list styles, which can continue numbering
+        unexpectedly across unrelated lists. Ordered lists preserve hierarchical
+        numbering for nested structures, for example: 1., 1.1., 1.1.1.
+        """
         index = start_index + 1
+        item_number = 1
+        parent_numbers = parent_numbers or ()
 
         while index < len(tokens):
             token = tokens[index]
@@ -467,19 +488,104 @@ class DocxExporter:
             if token.type in {"bullet_list_close", "ordered_list_close"}:
                 return index + 1
 
-            if token.type == "paragraph_open":
-                paragraph = document.add_paragraph(style=style)
-                self._add_inline_runs(paragraph, tokens[index + 1])
-
-                if not paragraph.text.strip():
-                    self._remove_empty_paragraph(paragraph)
-
-                index += 3
+            if token.type == "list_item_open":
+                index, item_number = self._render_list_item(
+                    document=document,
+                    tokens=tokens,
+                    start_index=index + 1,
+                    ordered=ordered,
+                    level=level,
+                    item_number=item_number,
+                    parent_numbers=parent_numbers,
+                )
                 continue
 
             index += 1
 
         return index
+
+    def _render_list_item(
+        self,
+        document: Document,
+        tokens: list[Token],
+        start_index: int,
+        ordered: bool,
+        level: int,
+        item_number: int,
+        parent_numbers: tuple[int, ...],
+    ) -> tuple[int, int]:
+        index = start_index
+        current_numbers = (
+            parent_numbers + (item_number,)
+            if ordered
+            else parent_numbers
+        )
+
+        while index < len(tokens):
+            token = tokens[index]
+
+            if token.type == "list_item_close":
+                return index + 1, item_number + 1
+
+            if token.type == "paragraph_open":
+                inline = tokens[index + 1]
+
+                paragraph = document.add_paragraph(style="Normal")
+                paragraph.paragraph_format.left_indent = Inches(0.32 * (level + 1))
+                paragraph.paragraph_format.first_line_indent = Inches(-0.18)
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.space_after = Pt(3)
+
+                marker = (
+                    self._ordered_marker(current_numbers)
+                    if ordered
+                    else self._bullet_marker(level)
+                )
+
+                marker_run = paragraph.add_run(marker)
+                marker_run.bold = False
+                self._apply_inline_style_spec(marker_run)
+
+                self._add_inline_runs(paragraph, inline)
+
+                index += 3
+                continue
+
+            if token.type == "bullet_list_open":
+                index = self._render_list(
+                    document=document,
+                    tokens=tokens,
+                    start_index=index,
+                    ordered=False,
+                    level=level + 1,
+                    parent_numbers=current_numbers,
+                )
+                continue
+
+            if token.type == "ordered_list_open":
+                index = self._render_list(
+                    document=document,
+                    tokens=tokens,
+                    start_index=index,
+                    ordered=True,
+                    level=level + 1,
+                    parent_numbers=current_numbers,
+                )
+                continue
+
+            index += 1
+
+        return index, item_number
+
+    def _ordered_marker(self, numbers: tuple[int, ...]) -> str:
+        if not numbers:
+            return "1. "
+
+        return ".".join(str(number) for number in numbers) + ". "
+
+    def _bullet_marker(self, level: int) -> str:
+        markers = ("• ", "◦ ", "▪ ")
+        return markers[level % len(markers)]
 
     def _render_table(
         self,

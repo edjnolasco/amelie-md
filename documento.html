@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Informe Técnico de Prueba</title>
+    <style>
+        @page {
+    size: A4;
+    margin: 2.5cm;
+}
+
+@media print {
+    body {
+        margin: 0;
+    }
+
+    .cover {
+        page-break-after: always;
+    }
+
+    .toc {
+        page-break-after: always;
+    }
+
+    pre,
+    table {
+        page-break-inside: avoid;
+    }
+}
+
+body {
+    font-family: "Times New Roman", serif;
+    background: #ffffff;
+    color: #111111;
+    line-height: 1.6;
+    margin: 40px;
+}
+
+.cover {
+    text-align: center;
+    margin-top: 100px;
+    margin-bottom: 80px;
+    page-break-after: always;
+}
+
+.cover h1 {
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+.cover .subtitle {
+    font-size: 20px;
+    margin-bottom: 30px;
+    color: #333333;
+}
+
+.cover .author,
+.cover .date {
+    font-size: 16px;
+    color: #444444;
+}
+
+.toc {
+    max-width: 900px;
+    margin: 0 auto 60px auto;
+    page-break-after: always;
+}
+
+.toc h2 {
+    font-size: 22px;
+    border-bottom: 1px solid #cccccc;
+    padding-bottom: 5px;
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.toc li {
+    margin: 6px 0;
+}
+
+.toc a {
+    color: #111111;
+    text-decoration: none;
+}
+
+.document {
+    max-width: 900px;
+    margin: auto;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-weight: bold;
+    margin-top: 1.5em;
+}
+
+h1 {
+    font-size: 28px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 22px;
+    border-bottom: 1px solid #cccccc;
+    padding-bottom: 5px;
+}
+
+h3 {
+    font-size: 18px;
+}
+
+p {
+    text-align: justify;
+}
+
+code {
+    background: #f5f5f5;
+    padding: 2px 4px;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 12px;
+    overflow-x: auto;
+    border: 1px solid #dddddd;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+}
+
+table,
+th,
+td {
+    border: 1px solid #444444;
+}
+
+th,
+td {
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background: #f2f2f2;
+}
+
+blockquote {
+    border-left: 4px solid #999999;
+    padding-left: 12px;
+    color: #555555;
+    margin-left: 0;
+}
+    </style>
+</head>
+<body>
+
+    <section class="cover">
+        <h1>Informe Técnico de Prueba</h1>
+
+        
+        <p class="subtitle">Amelie MD v0.2</p>
+        
+
+        
+        <p class="author">Edwin José Nolasco</p>
+        
+
+        
+        <p class="date">2026-04-27</p>
+        
+    </section>
+
+    
+    <section class="toc">
+        <h2>Tabla de contenido</h2>
+        <div class="toc">
+<ul>
+<li><a href="#introduccion">Introducción</a><ul>
+<li><a href="#subtitulo-mal-jerarquizado">Subtítulo mal jerarquizado</a></li>
+</ul>
+</li>
+<li><a href="#metodologia">Metodología</a><ul>
+<li><a href="#tabla-de-prueba">Tabla de prueba</a></li>
+</ul>
+</li>
+<li><a href="#resultados">Resultados</a></li>
+<li><a href="#conclusiones">Conclusiones</a></li>
+</ul>
+</div>
+
+    </section>
+    
+
+    <main class="document">
+        <h1 id="introduccion">Introducción</h1>
+<p>Este documento prueba la estructura documental de Amelie MD.</p>
+<h2 id="subtitulo-mal-jerarquizado">Subtítulo mal jerarquizado</h2>
+<p>Este encabezado debe normalizarse automáticamente.</p>
+<h1 id="metodologia">Metodología</h1>
+<p>Se evalúa la generación de HTML profesional desde Markdown.</p>
+<h2 id="tabla-de-prueba">Tabla de prueba</h2>
+<table>
+<thead>
+<tr>
+<th>Elemento</th>
+<th>Estado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontmatter</td>
+<td>Activo</td>
+</tr>
+<tr>
+<td>TOC</td>
+<td>Activo</td>
+</tr>
+<tr>
+<td>Portada</td>
+<td>Activa</td>
+</tr>
+<tr>
+<td>Normalización</td>
+<td>Activa</td>
+</tr>
+</tbody>
+</table>
+<h1 id="resultados">Resultados</h1>
+<p>El documento debe generar portada, tabla de contenido y contenido estructurado.</p>
+<h1 id="conclusiones">Conclusiones</h1>
+<p>Amelie MD v0.2 transforma el MVP inicial en un pipeline documental básico.</p>
+    </main>
+
+</body>
+</html>

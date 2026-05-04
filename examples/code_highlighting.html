@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Code Highlighting Test</title>
+    <style>
+        @page {
+    size: A4;
+    margin: 2cm;
+}
+
+@media print {
+    body {
+        margin: 0;
+    }
+
+    .cover {
+        page-break-after: always;
+    }
+
+    pre,
+    table {
+        page-break-inside: avoid;
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: #ffffff;
+    color: #24292f;
+    line-height: 1.55;
+    margin: 40px;
+    font-size: 11pt;
+}
+
+.cover {
+    max-width: 900px;
+    margin: 40px auto 50px auto;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #d0d7de;
+}
+
+.cover h1 {
+    font-size: 28pt;
+    line-height: 1.2;
+    margin-bottom: 10px;
+}
+
+.cover .subtitle {
+    font-size: 14pt;
+    color: #57606a;
+}
+
+.cover .author,
+.cover .date {
+    font-size: 10.5pt;
+    color: #57606a;
+}
+
+.toc {
+    max-width: 900px;
+    margin: 0 auto 40px auto;
+    padding: 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #f6f8fa;
+}
+
+.toc h2 {
+    margin-top: 0;
+    font-size: 16pt;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 6px;
+}
+
+.toc ul {
+    margin-bottom: 0;
+    padding-left: 20px;
+}
+
+.toc li {
+    margin: 4px 0;
+}
+
+.toc a {
+    color: #0969da;
+    text-decoration: none;
+}
+
+.document {
+    max-width: 900px;
+    margin: auto;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-weight: 600;
+    line-height: 1.25;
+    color: #24292f;
+}
+
+h1 {
+    font-size: 26pt;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+}
+
+h2 {
+    font-size: 20pt;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+    margin-top: 1.6em;
+}
+
+h3 {
+    font-size: 15pt;
+    margin-top: 1.4em;
+}
+
+p {
+    margin: 0 0 12px 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+}
+
+li {
+    margin: 4px 0;
+}
+
+code {
+    background: #afb8c133;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 10pt;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 12px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+pre code {
+    display: block;
+    white-space: pre-wrap;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0;
+    font-size: 10.5pt;
+}
+
+table,
+th,
+td {
+    border: 1px solid #d0d7de;
+}
+
+th,
+td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #f6f8fa;
+    font-weight: 600;
+}
+
+blockquote {
+    color: #57606a;
+    border-left: 4px solid #d0d7de;
+    padding-left: 12px;
+    margin-left: 0;
+}
+
+pre code {
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
+}
+
+.codehilite {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    margin: 18px 0;
+    overflow-x: auto;
+}
+
+.codehilite pre {
+    margin: 0;
+    border: none;
+    background: transparent;
+}
+
+.codehilite code {
+    background: transparent;
+    padding: 0;
+}
+
+.codehilite .hll { background-color: #ffffcc; }
+.codehilite { background: #f6f8fa; color: #24292f; }
+.codehilite .c { color: #6a737d; font-style: italic; }
+.codehilite .err { color: #b31d28; background-color: #ffeef0; }
+.codehilite .k { color: #d73a49; font-weight: bold; }
+.codehilite .o { color: #d73a49; }
+.codehilite .ch { color: #6a737d; font-style: italic; }
+.codehilite .cm { color: #6a737d; font-style: italic; }
+.codehilite .cp { color: #d73a49; }
+.codehilite .cpf { color: #6a737d; font-style: italic; }
+.codehilite .c1 { color: #6a737d; font-style: italic; }
+.codehilite .cs { color: #6a737d; font-style: italic; font-weight: bold; }
+.codehilite .gd { color: #b31d28; background-color: #ffeef0; }
+.codehilite .ge { font-style: italic; }
+.codehilite .gr { color: #b31d28; }
+.codehilite .gh { color: #005cc5; font-weight: bold; }
+.codehilite .gi { color: #22863a; background-color: #f0fff4; }
+.codehilite .go { color: #6a737d; }
+.codehilite .gp { color: #6a737d; }
+.codehilite .gs { font-weight: bold; }
+.codehilite .gu { color: #6f42c1; font-weight: bold; }
+.codehilite .gt { color: #b31d28; }
+.codehilite .kc { color: #005cc5; font-weight: bold; }
+.codehilite .kd { color: #d73a49; font-weight: bold; }
+.codehilite .kn { color: #d73a49; font-weight: bold; }
+.codehilite .kp { color: #d73a49; font-weight: bold; }
+.codehilite .kr { color: #d73a49; font-weight: bold; }
+.codehilite .kt { color: #d73a49; font-weight: bold; }
+.codehilite .m { color: #005cc5; }
+.codehilite .s { color: #032f62; }
+.codehilite .na { color: #6f42c1; }
+.codehilite .nb { color: #005cc5; }
+.codehilite .nc { color: #6f42c1; font-weight: bold; }
+.codehilite .no { color: #005cc5; }
+.codehilite .nd { color: #6f42c1; }
+.codehilite .ni { color: #24292f; }
+.codehilite .ne { color: #b31d28; font-weight: bold; }
+.codehilite .nf { color: #6f42c1; font-weight: bold; }
+.codehilite .nl { color: #005cc5; }
+.codehilite .nn { color: #6f42c1; }
+.codehilite .nt { color: #22863a; }
+.codehilite .nv { color: #e36209; }
+.codehilite .ow { color: #d73a49; font-weight: bold; }
+.codehilite .w { color: #bbbbbb; }
+.codehilite .mb { color: #005cc5; }
+.codehilite .mf { color: #005cc5; }
+.codehilite .mh { color: #005cc5; }
+.codehilite .mi { color: #005cc5; }
+.codehilite .mo { color: #005cc5; }
+.codehilite .sa { color: #032f62; }
+.codehilite .sb { color: #032f62; }
+.codehilite .sc { color: #032f62; }
+.codehilite .dl { color: #032f62; }
+.codehilite .sd { color: #032f62; }
+.codehilite .s2 { color: #032f62; }
+.codehilite .se { color: #032f62; }
+.codehilite .sh { color: #032f62; }
+.codehilite .si { color: #032f62; }
+.codehilite .sx { color: #032f62; }
+.codehilite .sr { color: #032f62; }
+.codehilite .s1 { color: #032f62; }
+.codehilite .ss { color: #032f62; }
+.codehilite .bp { color: #005cc5; }
+.codehilite .fm { color: #6f42c1; font-weight: bold; }
+.codehilite .vc { color: #e36209; }
+.codehilite .vg { color: #e36209; }
+.codehilite .vi { color: #e36209; }
+.codehilite .vm { color: #e36209; }
+.codehilite .il { color: #005cc5; }
+    </style>
+</head>
+<body>
+
+    <section class="cover">
+        <h1>Code Highlighting Test</h1>
+
+        
+
+        
+        <p class="author">Edwin José Nolasco</p>
+        
+
+        
+        <p class="date">2026-04-27</p>
+        
+    </section>
+
+    
+    <section class="toc">
+        <h2>Tabla de contenido</h2>
+        <div class="toc">
+<ul>
+<li><a href="#python">Python</a></li>
+</ul>
+</div>
+
+    </section>
+    
+
+    <main class="document">
+        <h1 id="python">Python</h1>
+<p>```python
+from pathlib import Path</p>
+<p>def build_document(input_path: Path) -&gt; str:
+    if not input_path.exists():
+        raise FileNotFoundError(input_path)</p>
+<div class="codehilite"><pre><span></span><code>return input_path.read_text(encoding=&quot;utf-8&quot;)
+</code></pre></div>
+    </main>
+
+</body>
+</html>

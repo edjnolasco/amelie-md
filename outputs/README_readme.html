@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Readme Full</title>
+    <style>
+        @page {
+    size: A4;
+    margin: 2cm;
+}
+
+@media print {
+    body {
+        margin: 0;
+    }
+
+    .cover {
+        page-break-after: always;
+    }
+
+    pre,
+    table {
+        page-break-inside: avoid;
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: #ffffff;
+    color: #24292f;
+    line-height: 1.55;
+    margin: 40px;
+    font-size: 11pt;
+}
+
+.cover {
+    max-width: 900px;
+    margin: 40px auto 50px auto;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #d0d7de;
+}
+
+.cover h1 {
+    font-size: 28pt;
+    line-height: 1.2;
+    margin-bottom: 10px;
+}
+
+.cover .subtitle {
+    font-size: 14pt;
+    color: #57606a;
+}
+
+.cover .author,
+.cover .date {
+    font-size: 10.5pt;
+    color: #57606a;
+}
+
+.toc {
+    max-width: 900px;
+    margin: 0 auto 40px auto;
+    padding: 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #f6f8fa;
+}
+
+.toc h2 {
+    margin-top: 0;
+    font-size: 16pt;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 6px;
+}
+
+.toc ul {
+    margin-bottom: 0;
+    padding-left: 20px;
+}
+
+.toc li {
+    margin: 4px 0;
+}
+
+.toc a {
+    color: #0969da;
+    text-decoration: none;
+}
+
+.document {
+    max-width: 900px;
+    margin: auto;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-weight: 600;
+    line-height: 1.25;
+    color: #24292f;
+}
+
+h1 {
+    font-size: 26pt;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+}
+
+h2 {
+    font-size: 20pt;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #d0d7de;
+    margin-top: 1.6em;
+}
+
+h3 {
+    font-size: 15pt;
+    margin-top: 1.4em;
+}
+
+p {
+    margin: 0 0 12px 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+}
+
+li {
+    margin: 4px 0;
+}
+
+code {
+    background: #afb8c133;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 10pt;
+}
+
+pre {
+    background: #f6f8fa;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: 6px;
+    border: 1px solid #d0d7de;
+    line-height: 1.45;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0;
+    font-size: 10.5pt;
+}
+
+table,
+th,
+td {
+    border: 1px solid #d0d7de;
+}
+
+th,
+td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #f6f8fa;
+    font-weight: 600;
+}
+
+blockquote {
+    color: #57606a;
+    border-left: 4px solid #d0d7de;
+    padding-left: 12px;
+    margin-left: 0;
+}
+    </style>
+</head>
+<body>
+
+    <section class="cover">
+        <h1>Readme Full</h1>
+
+        
+
+        
+        <p class="author">Edwin José Nolasco</p>
+        
+
+        
+        <p class="date">2026-04-27</p>
+        
+    </section>
+
+    
+    <section class="toc">
+        <h2>Tabla de contenido</h2>
+        <div class="toc">
+<ul>
+<li><a href="#rd-territorial-system">🇩🇴 rd-territorial-system</a><ul>
+<li><a href="#objetivo">🎯 Objetivo</a></li>
+<li><a href="#arquitectura">🧱 Arquitectura</a></li>
+<li><a href="#estado-del-sistema">📦 Estado del sistema</a></li>
+<li><a href="#inicio-rapido">🚀 Inicio rápido</a></li>
+<li><a href="#ejecucion-con-docker">🐳 Ejecución con Docker</a></li>
+<li><a href="#seguridad">🔒 Seguridad</a></li>
+<li><a href="#rate-limiting">⚙️ Rate Limiting</a></li>
+<li><a href="#observabilidad">📊 Observabilidad</a></li>
+<li><a href="#resolver-territorial">🧠 Resolver territorial</a></li>
+<li><a href="#ejemplos-de-uso">📡 Ejemplos de uso</a></li>
+<li><a href="#respuestas-tipicas">❗ Respuestas típicas</a></li>
+<li><a href="#testing">🧪 Testing</a></li>
+<li><a href="#estructura-del-proyecto">📁 Estructura del proyecto</a></li>
+<li><a href="#consideraciones-de-diseno">📌 Consideraciones de diseño</a></li>
+<li><a href="#casos-de-uso">🔭 Casos de uso</a></li>
+<li><a href="#autor">👤 Autor</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+    </section>
+    
+
+    <main class="document">
+        <h1 id="rd-territorial-system">🇩🇴 rd-territorial-system</h1>
+<p>Motor de resolución territorial de alta precisión para República Dominicana.</p>
+<p>API REST diseñada para resolver, normalizar y consultar entidades territoriales (provincias, municipios, distritos municipales, secciones, barrios y sub-barrios) con enfoque en:</p>
+<ul>
+<li>precisión semántica</li>
+<li>rendimiento en memoria</li>
+<li>control de acceso granular</li>
+<li>observabilidad y operación en producción</li>
+</ul>
+<hr />
+<h2 id="objetivo">🎯 Objetivo</h2>
+<p>Proveer un servicio backend robusto y escalable que permita:</p>
+<ul>
+<li>Resolver nombres territoriales ambiguos</li>
+<li>Normalizar estructuras administrativas</li>
+<li>Soportar integraciones externas (apps, DSS, pipelines ML)</li>
+<li>Operar bajo condiciones reales de producción (seguridad + rate limiting + logging)</li>
+</ul>
+<hr />
+<h2 id="arquitectura">🧱 Arquitectura</h2>
+<p>Cliente (API / SDK / DSS)
+        │
+        ▼
+FastAPI (API v1)
+        │
+        ├── Seguridad
+        │     - API Keys
+        │     - Scopes
+        │     - Client identification
+        │
+        ├── Rate Limiting
+        │     - Memory / Redis backend
+        │     - Per-client enforcement
+        │
+        ├── Resolver Engine
+        │     - Índices en memoria
+        │     - Matching determinístico
+        │     - Resolución jerárquica
+        │
+        ├── Observabilidad
+        │     - Logging estructurado
+        │     - request_id / client_id
+        │
+        ▼
+Catálogo Territorial (~20k entidades)</p>
+<hr />
+<h2 id="estado-del-sistema">📦 Estado del sistema</h2>
+<ul>
+<li>API v1 estable</li>
+<li>Catálogo nacional completo (32 provincias)</li>
+<li>~20,000 entidades territoriales</li>
+<li>Resolver optimizado en memoria</li>
+<li>OpenAPI validado</li>
+<li>+175 tests pasando</li>
+<li>Cobertura ≥ 80%</li>
+<li>Rate limiting distribuido (Redis) validado</li>
+</ul>
+<hr />
+<h2 id="inicio-rapido">🚀 Inicio rápido</h2>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/edjnolasco/rd-territorial-system.git
+<span class="nb">cd</span><span class="w"> </span>rd-territorial-system
+
+python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+
+uvicorn<span class="w"> </span>app.main:app<span class="w"> </span>--reload
+</code></pre></div>
+
+<p>Documentación:
+http://localhost:8000/docs</p>
+<hr />
+<h2 id="ejecucion-con-docker">🐳 Ejecución con Docker</h2>
+<div class="codehilite"><pre><span></span><code>docker-compose<span class="w"> </span>up<span class="w"> </span>--build
+</code></pre></div>
+
+<p>Servicios incluidos:</p>
+<ul>
+<li>API (FastAPI)</li>
+<li>Redis (rate limiting distribuido)</li>
+</ul>
+<hr />
+<h2 id="seguridad">🔒 Seguridad</h2>
+<h3 id="modos-disponibles">Modos disponibles</h3>
+<table>
+<thead>
+<tr>
+<th>Modo</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>public</td>
+<td>Sin autenticación</td>
+</tr>
+<tr>
+<td>api_key</td>
+<td>Requiere API Key</td>
+</tr>
+<tr>
+<td>hybrid</td>
+<td>Público + protegido por scopes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="api-keys">API Keys</h3>
+<p>Ubicación:
+data/api_keys.json</p>
+<ul>
+<li>soporte fallback vía variables de entorno</li>
+<li>nunca se exponen en logs</li>
+<li>uso de api_key_hash para trazabilidad segura</li>
+</ul>
+<hr />
+<h3 id="identificacion-de-cliente">Identificación de cliente</h3>
+<p>Cada request genera:</p>
+<p>client_id:
+- client:<id>
+- api_key:<hash>
+- ip fallback</p>
+<p>Permite:</p>
+<ul>
+<li>rate limiting por cliente real</li>
+<li>trazabilidad completa</li>
+</ul>
+<hr />
+<h3 id="scopes">Scopes</h3>
+<ul>
+<li>control por endpoint</li>
+<li>soporte wildcard (*)</li>
+</ul>
+<hr />
+<h2 id="rate-limiting">⚙️ Rate Limiting</h2>
+<p>Características:</p>
+<ul>
+<li>aplicado por client_id</li>
+<li>configurable por cliente</li>
+<li>soporta overrides</li>
+</ul>
+<p>Backends:</p>
+<ul>
+<li>memory (desarrollo)</li>
+<li>redis (producción)</li>
+</ul>
+<p>Respuesta estándar:</p>
+<p>HTTP 429 Too Many Requests</p>
+<hr />
+<h2 id="observabilidad">📊 Observabilidad</h2>
+<p>Cada request incluye:</p>
+<ul>
+<li>request_id</li>
+<li>client_id</li>
+<li>api_key_hash</li>
+</ul>
+<hr />
+<h2 id="resolver-territorial">🧠 Resolver territorial</h2>
+<p>Capacidades:</p>
+<ul>
+<li>resolución jerárquica completa</li>
+<li>manejo de ambigüedad</li>
+<li>normalización de nombres</li>
+<li>matching robusto</li>
+</ul>
+<hr />
+<h2 id="ejemplos-de-uso">📡 Ejemplos de uso</h2>
+<h3 id="request-basico">Request básico</h3>
+<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/api/v1/resolve<span class="w">   </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w">   </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;query&quot;: &quot;Azua&quot;, &quot;level&quot;: &quot;province&quot;}&#39;</span>
+</code></pre></div>
+
+<hr />
+<h3 id="con-api-key">Con API Key</h3>
+<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/api/v1/resolve<span class="w">   </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;API_KEY&gt;&quot;</span><span class="w">   </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w">   </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;query&quot;: &quot;Brisas del Norte&quot;, &quot;level&quot;: &quot;sub_barrio&quot;}&#39;</span>
+</code></pre></div>
+
+<hr />
+<h2 id="respuestas-tipicas">❗ Respuestas típicas</h2>
+<p>401 Unauthorized<br />
+403 Forbidden<br />
+429 Too Many Requests  </p>
+<hr />
+<h2 id="testing">🧪 Testing</h2>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest
+</code></pre></div>
+
+<hr />
+<h2 id="estructura-del-proyecto">📁 Estructura del proyecto</h2>
+<p>rd-territorial-system/
+├── app/
+├── src/
+├── data/
+├── tests/
+├── Dockerfile
+├── docker-compose.yml</p>
+<hr />
+<h2 id="consideraciones-de-diseno">📌 Consideraciones de diseño</h2>
+<ul>
+<li>Resolver en memoria → latencia mínima</li>
+<li>Catálogo normalizado → consistencia</li>
+<li>Seguridad desacoplada → flexible</li>
+<li>Rate limiting por cliente → control real</li>
+<li>Observabilidad nativa → producción-ready</li>
+</ul>
+<hr />
+<h2 id="casos-de-uso">🔭 Casos de uso</h2>
+<ul>
+<li>DSS territoriales</li>
+<li>Normalización de direcciones</li>
+<li>Integración con sistemas gubernamentales</li>
+<li>Pipelines de datos geoespaciales</li>
+<li>APIs públicas controladas</li>
+</ul>
+<hr />
+<h2 id="autor">👤 Autor</h2>
+<p>Edwin José Nolasco<br />
+PhD (c) Artificial Intelligence &amp; Machine Learning</p>
+    </main>
+
+</body>
+</html>
