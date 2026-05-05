@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.oxml.ns import qn
 
 from amelie_md.document import AmelieDocument, DocumentBlock
 
@@ -13,22 +14,11 @@ class DocxImporter:
     """Imports a .docx file into Amelie's intermediate document model."""
 
     HEADING_PATTERNS: tuple[tuple[re.Pattern[str], int], ...] = (
-        # Capítulo 1, CAPÍTULO 2, Capitulo 3
         (re.compile(r"^\s*cap[ií]tulo\s+\d+[\.:]?\s+.+$", re.IGNORECASE), 1),
-
-        # 1. Introducción
-        (re.compile(r"^\s*\d+\.\s+\S.+$"), 1),
-
-        # 1.1 Marco conceptual
-        (re.compile(r"^\s*\d+\.\d+\.?\s+\S.+$"), 2),
-
-        # 1.1.1 Subtema
         (re.compile(r"^\s*\d+\.\d+\.\d+\.?\s+\S.+$"), 3),
-
-        # Sección 1: Conceptos básicos
+        (re.compile(r"^\s*\d+\.\d+\.?\s+\S.+$"), 2),
+        (re.compile(r"^\s*\d+\.\s+\S.+$"), 1),
         (re.compile(r"^\s*secci[oó]n\s+\d+[\.:]?\s+.+$", re.IGNORECASE), 2),
-
-        # Anexo A, ANEXO 1
         (re.compile(r"^\s*anexo\s+([a-z]|\d+)[\.:]?\s*.*$", re.IGNORECASE), 1),
     )
 
@@ -77,7 +67,35 @@ class DocxImporter:
 
         style_name = paragraph.style.name if paragraph.style else ""
 
-        heading_level = self._detect_heading_level(style_name, text)
+        style_heading_level = self._detect_heading_level_from_style(style_name)
+        if style_heading_level is not None:
+            return DocumentBlock(
+                type="heading",
+                text=text,
+                level=style_heading_level,
+            )
+
+        word_list = self._detect_word_list_item(document, paragraph)
+        if word_list:
+            ordered, indent = word_list
+            return DocumentBlock(
+                type="list_item",
+                text=text,
+                ordered=ordered,
+                indent=indent,
+            )
+
+        list_item = self._detect_list_item(paragraph.text)
+        if list_item:
+            _, ordered, clean_text, indent = list_item
+            return DocumentBlock(
+                type="list_item",
+                text=clean_text,
+                ordered=ordered,
+                indent=indent,
+            )
+
+        heading_level = self._detect_heading_level_from_text(text)
         if heading_level is not None:
             return DocumentBlock(
                 type="heading",
@@ -157,6 +175,10 @@ class DocxImporter:
         if not self._can_be_heading(normalized):
             return None
 
+        if re.match(r"^\s*\d+[\.\)\-]\s+\S+", normalized):
+            if len(normalized.split()) <= 6:
+                return None
+
         for pattern, level in self.HEADING_PATTERNS:
             if pattern.match(normalized):
                 return level
@@ -176,7 +198,6 @@ class DocxImporter:
         if "\n" in text:
             return False
 
-        # Evita convertir oraciones narrativas largas en títulos.
         if text.count(".") >= 2:
             return False
 
@@ -185,12 +206,6 @@ class DocxImporter:
             return False
 
         return True
-        
-    def _force_update_fields_on_open(self, document):
-        settings = document.settings.element
-        update_fields = OxmlElement("w:updateFields")
-        update_fields.set(qn("w:val"), "true")
-        settings.append(update_fields)    
 
     def _looks_like_short_title(self, text: str) -> bool:
         lower = text.lower().strip()
@@ -224,8 +239,6 @@ class DocxImporter:
         if lower in common_titles:
             return True
 
-        # Caso típico: "Sección 1: Tabla de ejemplo" ya está cubierto por regex.
-        # Este fallback cubre títulos cortos tipo "Conceptos básicos".
         words = text.split()
 
         if 2 <= len(words) <= 6:
@@ -245,7 +258,7 @@ class DocxImporter:
         if "code" in style_name or "source" in style_name:
             return True
 
-        if "\n" in text and any(
+        if any(
             marker in text
             for marker in (
                 "def ",
@@ -277,3 +290,132 @@ class DocxImporter:
         )
 
         return stripped.startswith(code_markers)
+
+    def _detect_list_item(self, text: str) -> tuple[bool, bool, str, int] | None:
+        original = text.rstrip()
+        stripped = original.strip()
+
+        leading_spaces = len(original) - len(original.lstrip(" "))
+        indent = max(leading_spaces // 2, 0)
+
+        if stripped.startswith(("• ", "- ", "* ")):
+            return (True, False, stripped[2:].strip(), indent)
+
+        match = re.match(r"^\s*(\d+)[\.\)\-]\s+(.*)$", stripped)
+        if match:
+            return (True, True, match.group(2).strip(), indent)
+
+        match = re.match(r"^\s*[a-zA-Z][\)\.]\s+(.*)$", stripped)
+        if match:
+            return (True, True, match.group(1).strip(), indent)
+
+        return None
+
+    def _detect_word_list_item(
+        self,
+        document: Document,
+        paragraph: Any,
+    ) -> tuple[bool, int] | None:
+        paragraph_properties = paragraph._element.pPr
+        style_name = paragraph.style.name.lower().strip() if paragraph.style else ""
+
+        if paragraph_properties is not None:
+            num_pr = paragraph_properties.numPr
+
+            if num_pr is not None and num_pr.numId is not None:
+                ilvl_element = num_pr.ilvl
+                indent = int(ilvl_element.val) if ilvl_element is not None else 0
+                num_id = str(num_pr.numId.val)
+                ordered = self._is_ordered_word_list(document, num_id, indent)
+
+                return ordered, indent
+
+        if style_name == "list paragraph":
+            indent = self._detect_paragraph_indent_level(paragraph)
+            ordered = self._infer_ordered_list_from_paragraph(paragraph)
+            return ordered, indent
+
+        return None
+
+    def _detect_paragraph_indent_level(self, paragraph: Any) -> int:
+        left_indent = paragraph.paragraph_format.left_indent
+
+        if left_indent is None:
+            return 0
+
+        inches = left_indent / 914400
+
+        if inches < 0.4:
+            return 0
+        if inches < 0.8:
+            return 1
+        if inches < 1.2:
+            return 2
+
+        return 3
+
+    def _infer_ordered_list_from_paragraph(self, paragraph: Any) -> bool:
+        text = paragraph.text.lower().strip()
+
+        ordered_words = (
+            "primer ",
+            "segundo ",
+            "tercer ",
+            "cuarto ",
+            "quinto ",
+            "sexto ",
+            "séptimo ",
+            "septimo ",
+            "octavo ",
+            "noveno ",
+            "décimo ",
+            "decimo ",
+        )
+
+        return text.startswith(ordered_words)
+
+    def _is_ordered_word_list(
+        self,
+        document: Document,
+        num_id: str,
+        level: int,
+    ) -> bool:
+        numbering = document.part.numbering_part.element
+
+        abstract_num_id = None
+
+        for num in numbering.findall(qn("w:num")):
+            if num.get(qn("w:numId")) != num_id:
+                continue
+
+            abstract = num.find(qn("w:abstractNumId"))
+            if abstract is not None:
+                abstract_num_id = abstract.get(qn("w:val"))
+                break
+
+        if abstract_num_id is None:
+            return False
+
+        for abstract_num in numbering.findall(qn("w:abstractNum")):
+            if abstract_num.get(qn("w:abstractNumId")) != abstract_num_id:
+                continue
+
+            for lvl in abstract_num.findall(qn("w:lvl")):
+                if lvl.get(qn("w:ilvl")) != str(level):
+                    continue
+
+                num_fmt = lvl.find(qn("w:numFmt"))
+                if num_fmt is None:
+                    return False
+
+                value = num_fmt.get(qn("w:val"))
+
+                return value in {
+                    "decimal",
+                    "upperRoman",
+                    "lowerRoman",
+                    "upperLetter",
+                    "lowerLetter",
+                }
+
+        return False

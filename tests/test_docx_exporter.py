@@ -3,26 +3,10 @@ from pathlib import Path
 from docx import Document
 
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
+from amelie_md.document import AmelieDocument  # ← IMPORT NUEVO
 
 
 def test_docx_exporter_creates_docx_with_core_elements(tmp_path: Path) -> None:
-    markdown = """# Main Title
-
-## Section
-
-This is a paragraph.
-
-- First item
-- Second item
-
-| Name | Value |
-| ---- | ----- |
-| A    | 1     |
-
-```python
-print("hello")
-
-"""
     output_path = tmp_path / "output.docx"
 
     exporter = DocxExporter(
@@ -33,7 +17,27 @@ print("hello")
         )
     )
 
-    exporter.export(markdown, output_path)
+    # 🔁 NUEVO: documento estructurado (sin Markdown)
+    document_model = AmelieDocument(
+        blocks=[
+            {"type": "heading", "level": 1, "text": "Main Title"},
+            {"type": "heading", "level": 2, "text": "Section"},
+            {"type": "paragraph", "text": "This is a paragraph."},
+            {"type": "list_item", "text": "First item", "level": 0, "ordered": False},
+            {"type": "list_item", "text": "Second item", "level": 0, "ordered": False},
+            {
+                "type": "table",
+                "rows": [
+                    ["Name", "Value"],
+                    ["A", "1"],
+                ],
+            },
+            {"type": "code", "code": 'print("hello")'},
+        ]
+    )
+
+    # 🔁 NUEVO: export directo desde AmelieDocument
+    exporter.export_document(document_model, output_path)
 
     assert output_path.exists()
 
