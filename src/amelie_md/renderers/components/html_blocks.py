@@ -80,3 +80,16 @@ def render_table(
     html.append("</table>")
 
     return "\n".join(html)
+
+
+def render_heading_block(
+    level: int,
+    heading_text: str,
+    anchor: str,
+) -> str:
+    level = min(max(level, 1), 6)
+
+    if not heading_text.strip():
+        return ""
+
+    return f'<h{level} id="{escape(anchor, quote=True)}">{heading_text}</h{level}>'

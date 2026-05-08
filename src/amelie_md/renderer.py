@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_code_block, render_paragraph, render_table
+from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_paragraph, render_table
 
 
 class AmelieRenderer:
@@ -158,11 +158,11 @@ class AmelieRenderer:
                     heading_label = f"{number} {raw_text}"
 
                 anchor = self._slugify(heading_label)
+                heading_html = render_heading_block(level, heading_text, anchor)
 
-                html_parts.append(
-                    f'<h{level} id="{anchor}">{heading_text}</h{level}>'
-                )
-                seen_content = True
+                if heading_html:
+                    html_parts.append(heading_html)
+                    seen_content = True
 
             elif block_type == "paragraph":
                 paragraph_html = render_paragraph(block, self._render_inline_html)
