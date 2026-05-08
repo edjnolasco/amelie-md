@@ -12,6 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
+from amelie_md.renderers.components.html_blocks import render_paragraph
 
 
 class AmelieRenderer:
@@ -164,11 +165,10 @@ class AmelieRenderer:
                 seen_content = True
 
             elif block_type == "paragraph":
-                raw_text = str(block.get("text", "")).strip()
+                paragraph_html = render_paragraph(block, self._render_inline_html)
 
-                if raw_text:
-                    text = self._render_inline_html(raw_text)
-                    html_parts.append(f"<p>{text}</p>")
+                if paragraph_html:
+                    html_parts.append(paragraph_html)
                     seen_content = True
 
             elif block_type == "code":
