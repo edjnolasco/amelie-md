@@ -55,3 +55,28 @@ def render_code_block(block: dict[str, Any], escape_html) -> str:
         return ""
 
     return f'<pre><code>{escape_html(code)}</code></pre>'
+
+
+def render_table(
+    rows: list[list[str]],
+    escape_html,
+) -> str:
+    if not rows:
+        return ""
+
+    html = ['<table class="amelie-table">']
+
+    for row_index, row in enumerate(rows):
+        html.append("<tr>")
+
+        tag = "th" if row_index == 0 else "td"
+
+        for cell in row:
+            value = escape_html(str(cell).strip())
+            html.append(f"<{tag}>{value}</{tag}>")
+
+        html.append("</tr>")
+
+    html.append("</table>")
+
+    return "\n".join(html)

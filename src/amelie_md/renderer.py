@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_code_block, render_paragraph
+from amelie_md.renderers.components.html_blocks import render_code_block, render_paragraph, render_table
 
 
 class AmelieRenderer:
@@ -219,23 +219,7 @@ class AmelieRenderer:
     def _render_table(self, rows: list[list[str]]) -> str:
         rows = self._sanitize_table_rows(rows)
 
-        if not rows:
-            return ""
-
-        html = ['<table class="amelie-table">']
-
-        for row_index, row in enumerate(rows):
-            html.append("<tr>")
-            tag = "th" if row_index == 0 else "td"
-
-            for cell in row:
-                value = self._escape_html(str(cell).strip())
-                html.append(f"<{tag}>{value}</{tag}>")
-
-            html.append("</tr>")
-
-        html.append("</table>")
-        return "\n".join(html)
+        return render_table(rows, self._escape_html)
 
     def _render_inline_html(self, text: str) -> str:
         runs = parse_inline(text)
