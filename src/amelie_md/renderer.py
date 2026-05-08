@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from markdown import Markdown
 from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
+from amelie_md.parsing.inline_parser import parse_inline
 
 
 class AmelieRenderer:
@@ -21,6 +23,9 @@ class AmelieRenderer:
 
     v1.2+ pipeline:
     AmelieDocument.blocks -> HTML
+
+    v1.3+ enhancement:
+    Inline semantic rendering for paragraph, heading and list_item blocks.
     """
 
     def __init__(self, template_dir: Path, style_path: Path):
@@ -137,18 +142,21 @@ class AmelieRenderer:
 
             if block_type == "heading":
                 level = min(max(int(block.get("level", 1)), 1), 6)
-                text = self._escape_html(str(block.get("text", "")).strip())
+                raw_text = str(block.get("text", "")).strip()
 
-                if not text:
+                if not raw_text:
                     continue
 
-                heading_text = text
+                rendered_text = self._render_inline_html(raw_text)
+                heading_text = rendered_text
+                heading_label = raw_text
 
                 if level > 1:
                     number = self._next_heading_number(level)
-                    heading_text = f"{number} {text}"
+                    heading_text = f"{number} {rendered_text}"
+                    heading_label = f"{number} {raw_text}"
 
-                anchor = self._slugify(heading_text)
+                anchor = self._slugify(heading_label)
 
                 html_parts.append(
                     f'<h{level} id="{anchor}">{heading_text}</h{level}>'
@@ -156,9 +164,10 @@ class AmelieRenderer:
                 seen_content = True
 
             elif block_type == "paragraph":
-                text = self._escape_html(str(block.get("text", "")).strip())
+                raw_text = str(block.get("text", "")).strip()
 
-                if text:
+                if raw_text:
+                    text = self._render_inline_html(raw_text)
                     html_parts.append(f"<p>{text}</p>")
                     seen_content = True
 
@@ -197,9 +206,10 @@ class AmelieRenderer:
         parts = [f'<{tag} class="amelie-list">']
 
         for item in clean_items:
-            text = self._escape_html(str(item.get("text", "")).strip())
+            raw_text = str(item.get("text", "")).strip()
 
-            if text:
+            if raw_text:
+                text = self._render_inline_html(raw_text)
                 parts.append(f"<li>{text}</li>")
 
         if len(parts) == 1:
@@ -228,6 +238,29 @@ class AmelieRenderer:
 
         html.append("</table>")
         return "\n".join(html)
+
+    def _render_inline_html(self, text: str) -> str:
+        runs = parse_inline(text)
+        parts: list[str] = []
+
+        for run in runs:
+            value = escape(run.text)
+
+            if run.code:
+                value = f"<code>{value}</code>"
+
+            if run.bold:
+                value = f"<strong>{value}</strong>"
+
+            if run.italic:
+                value = f"<em>{value}</em>"
+
+            if run.link:
+                value = f'<a href="{escape(run.link, quote=True)}">{value}</a>'
+
+            parts.append(value)
+
+        return "".join(parts)
 
     def _build_toc(self, blocks: list[dict[str, Any]]) -> str:
         items: list[str] = []
