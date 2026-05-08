@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_paragraph
+from amelie_md.renderers.components.html_blocks import render_code_block, render_paragraph
 
 
 class AmelieRenderer:
@@ -172,12 +172,10 @@ class AmelieRenderer:
                     seen_content = True
 
             elif block_type == "code":
-                code = str(block.get("code", "")).rstrip()
+                code_html = render_code_block(block, self._escape_html)
 
-                if code:
-                    html_parts.append(
-                        f'<pre><code>{self._escape_html(code)}</code></pre>'
-                    )
+                if code_html:
+                    html_parts.append(code_html)
                     seen_content = True
 
             elif block_type == "table":

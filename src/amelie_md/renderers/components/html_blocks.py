@@ -46,3 +46,12 @@ def render_paragraph(
 
     content = render_inline(raw_text) if render_inline else escape(raw_text)
     return f"<p>{content}</p>"
+
+
+def render_code_block(block: dict[str, Any], escape_html) -> str:
+    code = str(block.get("code", "")).rstrip()
+
+    if not code:
+        return ""
+
+    return f'<pre><code>{escape_html(code)}</code></pre>'
