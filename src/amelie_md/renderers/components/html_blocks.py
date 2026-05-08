@@ -93,3 +93,34 @@ def render_heading_block(
         return ""
 
     return f'<h{level} id="{escape(anchor, quote=True)}">{heading_text}</h{level}>'
+
+
+def render_list_item(
+    text: str,
+    render_inline,
+) -> str:
+    clean_text = text.strip()
+
+    if not clean_text:
+        return ""
+
+    content = render_inline(clean_text)
+    return f"<li>{content}</li>"
+
+
+def render_list(
+    items: list[str],
+    ordered: bool,
+) -> str:
+    clean_items = [item for item in items if item.strip()]
+
+    if not clean_items:
+        return ""
+
+    tag = "ol" if ordered else "ul"
+
+    html = [f'<{tag} class="amelie-list">']
+    html.extend(clean_items)
+    html.append(f"</{tag}>")
+
+    return "\n".join(html)

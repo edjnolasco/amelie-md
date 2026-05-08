@@ -1,6 +1,8 @@
 from amelie_md.renderers.components.html_blocks import (
     render_code_block,
     render_heading_block,
+    render_list,
+    render_list_item,
 )
 
 
@@ -33,3 +35,32 @@ def test_render_heading_block_clamps_level():
     html = render_heading_block(9, "Título", "titulo")
 
     assert html == '<h6 id="titulo">Título</h6>'
+
+
+def test_render_list_item():
+    html = render_list_item(
+        "**bold**",
+        lambda text: f"<strong>{text[2:-2]}</strong>",
+    )
+
+    assert html == "<li><strong>bold</strong></li>"
+
+
+def test_render_unordered_list():
+    html = render_list(
+        ["<li>A</li>", "<li>B</li>"],
+        ordered=False,
+    )
+
+    assert '<ul class="amelie-list">' in html
+    assert "<li>A</li>" in html
+    assert "<li>B</li>" in html
+
+
+def test_render_ordered_list():
+    html = render_list(
+        ["<li>A</li>", "<li>B</li>"],
+        ordered=True,
+    )
+
+    assert '<ol class="amelie-list">' in html

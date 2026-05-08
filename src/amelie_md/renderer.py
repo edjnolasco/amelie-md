@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_paragraph, render_table
+from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table
 
 
 class AmelieRenderer:
@@ -199,22 +199,21 @@ class AmelieRenderer:
             return ""
 
         ordered = bool(clean_items[0].get("ordered", False))
-        tag = "ol" if ordered else "ul"
 
-        parts = [f'<{tag} class="amelie-list">']
+        rendered_items: list[str] = []
 
         for item in clean_items:
             raw_text = str(item.get("text", "")).strip()
 
-            if raw_text:
-                text = self._render_inline_html(raw_text)
-                parts.append(f"<li>{text}</li>")
+            item_html = render_list_item(
+                raw_text,
+                self._render_inline_html,
+            )
 
-        if len(parts) == 1:
-            return ""
+            if item_html:
+                rendered_items.append(item_html)
 
-        parts.append(f"</{tag}>")
-        return "\n".join(parts)
+        return render_list(rendered_items, ordered)
 
     def _render_table(self, rows: list[list[str]]) -> str:
         rows = self._sanitize_table_rows(rows)
