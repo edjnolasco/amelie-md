@@ -13,6 +13,7 @@ from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table
+from amelie_md.renderers.registry import RendererRegistry
 
 
 class AmelieRenderer:
@@ -35,9 +36,37 @@ class AmelieRenderer:
         self.pygments_style_path = style_path.parent / "pygments.css"
         self._heading_numbers: list[int] = []
 
+        self.registry = RendererRegistry()
+        self._register_block_renderers()
+
         self.env = Environment(
             loader=FileSystemLoader(self.template_dir),
             autoescape=select_autoescape(["html"]),
+        )
+
+
+    def _register_block_renderers(self) -> None:
+        self.registry.register(
+            "paragraph",
+            lambda block: render_paragraph(
+                block,
+                self._render_inline_html,
+            ),
+        )
+
+        self.registry.register(
+            "code",
+            lambda block: render_code_block(
+                block,
+                self._escape_html,
+            ),
+        )
+
+        self.registry.register(
+            "table",
+            lambda block: self._render_table(
+                block.get("rows", []),
+            ),
         )
 
     def _create_markdown_engine(self) -> Markdown:
@@ -141,6 +170,16 @@ class AmelieRenderer:
 
             flush_list()
 
+            if self.registry.has(block_type):
+                renderer = self.registry.get(block_type)
+                rendered = renderer(block)
+
+                if rendered:
+                    html_parts.append(rendered)
+                    seen_content = True
+
+                continue
+
             if block_type == "heading":
                 level = min(max(int(block.get("level", 1)), 1), 6)
                 raw_text = str(block.get("text", "")).strip()
@@ -162,27 +201,6 @@ class AmelieRenderer:
 
                 if heading_html:
                     html_parts.append(heading_html)
-                    seen_content = True
-
-            elif block_type == "paragraph":
-                paragraph_html = render_paragraph(block, self._render_inline_html)
-
-                if paragraph_html:
-                    html_parts.append(paragraph_html)
-                    seen_content = True
-
-            elif block_type == "code":
-                code_html = render_code_block(block, self._escape_html)
-
-                if code_html:
-                    html_parts.append(code_html)
-                    seen_content = True
-
-            elif block_type == "table":
-                table_html = self._render_table(block.get("rows", []))
-
-                if table_html:
-                    html_parts.append(table_html)
                     seen_content = True
 
             elif block_type == "toc":
