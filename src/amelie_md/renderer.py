@@ -13,8 +13,8 @@ from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.core.semantic_normalizer import normalize_semantic_blocks
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_admonition_block, render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table, render_toc, render_toc_item
-from amelie_md.renderers.registry import RendererRegistry
+from amelie_md.renderers.components.html_blocks import render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
+from amelie_md.renderers.html_registry import build_html_registry
 
 
 class AmelieRenderer:
@@ -37,46 +37,17 @@ class AmelieRenderer:
         self.pygments_style_path = style_path.parent / "pygments.css"
         self._heading_numbers: list[int] = []
 
-        self.registry = RendererRegistry()
-        self._register_block_renderers()
+        self.registry = build_html_registry(
+            render_inline=self._render_inline_html,
+            render_table=self._render_table,
+            escape_html=self._escape_html,
+        )
 
         self.env = Environment(
             loader=FileSystemLoader(self.template_dir),
             autoescape=select_autoescape(["html"]),
         )
 
-
-    def _register_block_renderers(self) -> None:
-        self.registry.register(
-            "paragraph",
-            lambda block: render_paragraph(
-                block,
-                self._render_inline_html,
-            ),
-        )
-
-        self.registry.register(
-            "code",
-            lambda block: render_code_block(
-                block,
-                self._escape_html,
-            ),
-        )
-
-        self.registry.register(
-            "table",
-            lambda block: self._render_table(
-                block.get("rows", []),
-            ),
-        )
-
-        self.registry.register(
-            "admonition",
-            lambda block: render_admonition_block(
-                block,
-                self._render_inline_html,
-            ),
-        )
 
     def _create_markdown_engine(self) -> Markdown:
         return Markdown(
