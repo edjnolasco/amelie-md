@@ -4,6 +4,8 @@ from __future__ import annotations
 from amelie_md.renderers.components.html_blocks import (
     render_admonition_block,
     render_code_block,
+    render_definition_block,
+    render_quote_block,
     render_paragraph,
 )
 from amelie_md.renderers.registry import RendererRegistry
@@ -43,6 +45,22 @@ def build_html_registry(
     registry.register(
         "admonition",
         lambda block: render_admonition_block(
+            block,
+            render_inline,
+        ),
+    )
+
+    registry.register(
+        "definition",
+        lambda block: render_definition_block(
+            block,
+            render_inline,
+        ),
+    )
+
+    registry.register(
+        "quote",
+        lambda block: render_quote_block(
             block,
             render_inline,
         ),

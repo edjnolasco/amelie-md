@@ -269,3 +269,33 @@ ol li {
     border-left-color: #027a48;
     background: #ecfdf3;
 }
+
+
+.amelie-definition {
+    border: 1px solid #b7c9d6;
+    background: #f8fbfd;
+    padding: 0.9rem 1rem;
+    margin: 1.2rem 0;
+    border-radius: 6px;
+}
+
+.amelie-definition-title {
+    font-weight: 700;
+    color: #1f4e79;
+    margin-bottom: 0.45rem;
+}
+
+.amelie-quote {
+    border-left: 4px solid #6b7280;
+    padding: 0.8rem 1rem;
+    margin: 1.2rem 0;
+    background: #f9fafb;
+    font-style: italic;
+}
+
+.amelie-quote cite {
+    display: block;
+    margin-top: 0.5rem;
+    font-style: normal;
+    font-weight: 600;
+}

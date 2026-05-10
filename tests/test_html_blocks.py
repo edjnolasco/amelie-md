@@ -1,5 +1,5 @@
 from amelie_md.renderers.components.html_blocks import (
-    render_admonition_block,
+    render_admonition_block, render_definition_block, render_quote_block,
     render_code_block,
     render_heading_block,
     render_list,
@@ -109,3 +109,33 @@ def test_render_admonition_block():
     assert 'amelie-admonition-warning' in html
     assert "Warning" in html
     assert "<strong>production</strong>" in html
+
+
+def test_render_definition_block():
+    html = render_definition_block(
+        {
+            "type": "definition",
+            "title": "Concepto",
+            "text": "Texto con **énfasis**.",
+        },
+        lambda text: text.replace("**énfasis**", "<strong>énfasis</strong>"),
+    )
+
+    assert "amelie-definition" in html
+    assert "Concepto" in html
+    assert "<strong>énfasis</strong>" in html
+
+
+def test_render_quote_block():
+    html = render_quote_block(
+        {
+            "type": "quote",
+            "title": "Autor",
+            "text": "Texto citado.",
+        },
+        lambda text: text,
+    )
+
+    assert "amelie-quote" in html
+    assert "Texto citado." in html
+    assert "<cite>Autor</cite>" in html

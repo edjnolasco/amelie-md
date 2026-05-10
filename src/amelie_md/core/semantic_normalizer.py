@@ -57,7 +57,7 @@ def normalize_semantic_blocks(blocks: list[Any]) -> list[Any]:
         if content:
             normalized_blocks.append(
                 {
-                    "type": "admonition",
+                    "type": semantic_block_type(kind),
                     "kind": kind,
                     "title": title,
                     "text": content,
@@ -73,3 +73,11 @@ def parse_admonition_marker(marker: str) -> tuple[str, str]:
     title = parts[1].strip() if len(parts) > 1 else kind.title()
 
     return kind or "note", title
+
+
+
+def semantic_block_type(kind: str) -> str:
+    if kind in {"definition", "quote"}:
+        return kind
+
+    return "admonition"

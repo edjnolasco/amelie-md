@@ -44,3 +44,41 @@ def test_normalize_keeps_regular_blocks():
     ]
 
     assert normalize_semantic_blocks(blocks) == blocks
+
+
+def test_normalize_definition_block():
+    blocks = [
+        {"type": "paragraph", "text": ":::definition Concepto clave"},
+        {"type": "paragraph", "text": "A precise academic explanation."},
+        {"type": "paragraph", "text": ":::"},
+    ]
+
+    normalized = normalize_semantic_blocks(blocks)
+
+    assert normalized == [
+        {
+            "type": "definition",
+            "kind": "definition",
+            "title": "Concepto clave",
+            "text": "A precise academic explanation.",
+        }
+    ]
+
+
+def test_normalize_quote_block():
+    blocks = [
+        {"type": "paragraph", "text": ":::quote Autor"},
+        {"type": "paragraph", "text": "Knowledge is structured meaning."},
+        {"type": "paragraph", "text": ":::"},
+    ]
+
+    normalized = normalize_semantic_blocks(blocks)
+
+    assert normalized == [
+        {
+            "type": "quote",
+            "kind": "quote",
+            "title": "Autor",
+            "text": "Knowledge is structured meaning.",
+        }
+    ]

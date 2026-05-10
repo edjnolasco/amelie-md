@@ -172,3 +172,37 @@ def render_admonition_block(
         f'<div class="amelie-admonition-content">{content}</div>'
         f"</div>"
     )
+
+
+def render_definition_block(
+    block: dict,
+    render_inline,
+) -> str:
+    title = str(block.get("title", "Definition")).strip() or "Definition"
+    text = str(block.get("text", "")).strip()
+    content = render_inline(text)
+
+    return (
+        '<div class="amelie-definition">'
+        f'<div class="amelie-definition-title">{escape(title)}</div>'
+        f'<div class="amelie-definition-content">{content}</div>'
+        "</div>"
+    )
+
+
+def render_quote_block(
+    block: dict,
+    render_inline,
+) -> str:
+    text = str(block.get("text", "")).strip()
+    cite = str(block.get("title", "")).strip()
+    content = render_inline(text)
+
+    cite_html = f"<cite>{escape(cite)}</cite>" if cite else ""
+
+    return (
+        '<blockquote class="amelie-quote">'
+        f"{content}"
+        f"{cite_html}"
+        "</blockquote>"
+    )
