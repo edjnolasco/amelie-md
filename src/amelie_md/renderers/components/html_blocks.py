@@ -145,3 +145,30 @@ def render_toc(items: list[str]) -> str:
         return ""
 
     return '<ul class="amelie-toc">' + "".join(clean_items) + "</ul>"
+
+
+def render_admonition_block(
+    block: dict,
+    render_inline,
+) -> str:
+    kind = str(block.get("kind", "note")).strip().lower()
+    title = str(block.get("title", "")).strip()
+    text = str(block.get("text", "")).strip()
+
+    content = render_inline(text)
+
+    title_html = ""
+
+    if title:
+        title_html = (
+            f'<div class="amelie-admonition-title">'
+            f"{escape(title)}"
+            f"</div>"
+        )
+
+    return (
+        f'<div class="amelie-admonition amelie-admonition-{kind}">'
+        f"{title_html}"
+        f'<div class="amelie-admonition-content">{content}</div>'
+        f"</div>"
+    )

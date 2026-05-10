@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table, render_toc, render_toc_item
+from amelie_md.renderers.components.html_blocks import render_admonition_block, render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table, render_toc, render_toc_item
 from amelie_md.renderers.registry import RendererRegistry
 
 
@@ -66,6 +66,14 @@ class AmelieRenderer:
             "table",
             lambda block: self._render_table(
                 block.get("rows", []),
+            ),
+        )
+
+        self.registry.register(
+            "admonition",
+            lambda block: render_admonition_block(
+                block,
+                self._render_inline_html,
             ),
         )
 
@@ -348,6 +356,19 @@ class AmelieRenderer:
 
                 clean_block = dict(block)
                 clean_block["rows"] = rows
+                clean_blocks.append(clean_block)
+                continue
+
+            if block_type == "admonition":
+                text = str(block.get("text", "")).strip()
+
+                if not text:
+                    continue
+
+                clean_block = dict(block)
+                clean_block["text"] = text
+                clean_block["kind"] = str(block.get("kind", "note")).strip() or "note"
+                clean_block["title"] = str(block.get("title", "")).strip()
                 clean_blocks.append(clean_block)
                 continue
 

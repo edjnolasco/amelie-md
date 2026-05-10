@@ -14,3 +14,29 @@ def test_basic_render(tmp_path):
 
     assert "<h1" in html
     assert "Texto simple" in html
+
+def test_render_document_with_admonition(tmp_path):
+    renderer = AmelieRenderer(
+        template_dir=Path("src/amelie_md/templates"),
+        style_path=Path("src/amelie_md/styles/academic.css"),
+    )
+
+    document = type(
+        "Doc",
+        (),
+        {
+            "blocks": [
+                {
+                    "type": "admonition",
+                    "kind": "note",
+                    "title": "Note",
+                    "text": "Semantic blocks are supported.",
+                }
+            ]
+        },
+    )()
+
+    html = renderer.render_document_to_html_string(document)
+
+    assert "amelie-admonition-note" in html
+    assert "Semantic blocks are supported." in html

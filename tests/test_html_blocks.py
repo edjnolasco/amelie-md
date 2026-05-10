@@ -1,4 +1,5 @@
 from amelie_md.renderers.components.html_blocks import (
+    render_admonition_block,
     render_code_block,
     render_heading_block,
     render_list,
@@ -90,3 +91,21 @@ def test_render_toc():
     assert '<ul class="amelie-toc">' in html
     assert "toc-level-1" in html
     assert "toc-level-2" in html
+
+
+def test_render_admonition_block():
+    block = {
+        "type": "admonition",
+        "kind": "warning",
+        "title": "Warning",
+        "text": "Be careful with **production** data.",
+    }
+
+    html = render_admonition_block(
+        block,
+        lambda text: text.replace("**production**", "<strong>production</strong>"),
+    )
+
+    assert 'amelie-admonition-warning' in html
+    assert "Warning" in html
+    assert "<strong>production</strong>" in html

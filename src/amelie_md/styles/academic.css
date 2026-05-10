@@ -242,3 +242,30 @@ ol li {
 .toc li {
     list-style: none;
 }
+
+.amelie-admonition {
+    border-left: 5px solid #1f4e79;
+    background: #f4f8fb;
+    padding: 0.9rem 1rem;
+    margin: 1.2rem 0;
+    border-radius: 6px;
+}
+
+.amelie-admonition-title {
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+}
+
+.amelie-admonition-warning {
+    border-left-color: #b54708;
+    background: #fff7ed;
+}
+
+.amelie-admonition-note {
+    border-left-color: #1f4e79;
+}
+
+.amelie-admonition-tip {
+    border-left-color: #027a48;
+    background: #ecfdf3;
+}
