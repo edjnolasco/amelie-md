@@ -69,3 +69,30 @@ def test_docx_exporter_creates_docx_with_core_elements(tmp_path: Path) -> None:
     assert len(document.tables) == 1
     assert document.tables[0].cell(0, 0).text == "Name"
     assert document.tables[0].cell(1, 1).text == "1"
+
+def test_docx_exporter_renders_admonition_block(tmp_path: Path) -> None:
+    output_path = tmp_path / "admonition.docx"
+
+    exporter = DocxExporter()
+
+    document_model = AmelieDocument(
+        blocks=[
+            {
+                "type": "admonition",
+                "kind": "warning",
+                "title": "Warning",
+                "text": "Be careful with **production** data.",
+            }
+        ]
+    )
+
+    exporter.export_document(document_model, output_path)
+
+    document = Document(output_path)
+
+    assert len(document.tables) >= 1
+
+    cell_text = document.tables[0].cell(0, 0).text
+
+    assert "Warning" in cell_text
+    assert "Be careful with production data." in cell_text

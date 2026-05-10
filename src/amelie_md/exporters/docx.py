@@ -158,6 +158,10 @@ class DocxExporter:
             self._render_code_block(document, block)
             return
 
+        if block_type == "admonition":
+            self._render_admonition_block(document, block)
+            return
+
         if block_type == "toc":
             self._add_toc(document)
             return
@@ -826,6 +830,56 @@ class DocxExporter:
         numbering_properties.append(self._xml("w:numId", val=str(num_id)))
 
         paragraph_properties.append(numbering_properties)
+
+    def _render_admonition_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        kind = str(self._value(block, "kind", default="note")).strip().lower()
+        title = str(self._value(block, "title", default="")).strip()
+        text = str(self._value(block, "text", default="")).strip()
+
+        table = document.add_table(rows=1, cols=1)
+        table.style = "Table Grid"
+
+        cell = table.cell(0, 0)
+
+        fill_map = {
+            "note": "DCEAF7",
+            "warning": "FFF4E5",
+            "tip": "E7F6EC",
+            "important": "FDECEC",
+        }
+
+        fill = fill_map.get(kind, "DCEAF7")
+
+        self._set_cell_shading(cell, fill)
+        self._set_cell_margins(
+            cell,
+            top=120,
+            bottom=120,
+            start=160,
+            end=160,
+        )
+
+        if title:
+            title_paragraph = cell.paragraphs[0]
+            title_run = title_paragraph.add_run(title)
+
+            title_run.bold = True
+            title_run.font.size = Pt(11)
+
+            self._apply_inline_style_spec(title_run)
+
+            body_paragraph = cell.add_paragraph()
+
+        else:
+            body_paragraph = cell.paragraphs[0]
+
+        self._add_plain_text_runs(body_paragraph, text)
+
+        document.add_paragraph()
 
     def _add_toc(self, document: Document) -> None:
         paragraph = document.add_paragraph()
