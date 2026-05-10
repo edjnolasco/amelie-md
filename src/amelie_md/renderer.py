@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table
+from amelie_md.renderers.components.html_blocks import render_code_block, render_heading_block, render_list, render_list_item, render_paragraph, render_table, render_toc, render_toc_item
 from amelie_md.renderers.registry import RendererRegistry
 
 
@@ -236,7 +236,7 @@ class AmelieRenderer:
     def _render_table(self, rows: list[list[str]]) -> str:
         rows = self._sanitize_table_rows(rows)
 
-        return render_table(rows, self._escape_html)
+        return render_table, render_toc, render_toc_item(rows, self._escape_html)
 
     def _render_inline_html(self, text: str) -> str:
         runs = parse_inline(text)
@@ -283,15 +283,17 @@ class AmelieRenderer:
             anchor = self._slugify(label)
 
             items.append(
-                f'<li class="toc-level-{level}">'
-                f'<a href="#{anchor}">{label}</a>'
-                f"</li>"
+                render_toc_item(
+                    level,
+                    label,
+                    anchor,
+                )
             )
 
         if not items:
             return ""
 
-        return '<ul class="amelie-toc">' + "".join(items) + "</ul>"
+        return render_toc(items)
 
     def _next_heading_number(self, level: int) -> str:
         index = max(level - 2, 0)

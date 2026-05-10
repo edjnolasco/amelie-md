@@ -3,6 +3,8 @@ from amelie_md.renderers.components.html_blocks import (
     render_heading_block,
     render_list,
     render_list_item,
+    render_toc,
+    render_toc_item,
 )
 
 
@@ -64,3 +66,27 @@ def test_render_ordered_list():
     )
 
     assert '<ol class="amelie-list">' in html
+
+
+def test_render_toc_item():
+    html = render_toc_item(
+        2,
+        "1. Introducción",
+        "1-introduccion",
+    )
+
+    assert 'class="toc-level-2"' in html
+    assert 'href="#1-introduccion"' in html
+
+
+def test_render_toc():
+    html = render_toc(
+        [
+            '<li class="toc-level-1">A</li>',
+            '<li class="toc-level-2">B</li>',
+        ]
+    )
+
+    assert '<ul class="amelie-toc">' in html
+    assert "toc-level-1" in html
+    assert "toc-level-2" in html

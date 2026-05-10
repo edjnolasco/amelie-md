@@ -124,3 +124,24 @@ def render_list(
     html.append(f"</{tag}>")
 
     return "\n".join(html)
+
+
+def render_toc_item(
+    level: int,
+    label: str,
+    anchor: str,
+) -> str:
+    return (
+        f'<li class="toc-level-{level}">'
+        f'<a href="#{escape(anchor, quote=True)}">{label}</a>'
+        f"</li>"
+    )
+
+
+def render_toc(items: list[str]) -> str:
+    clean_items = [item for item in items if item.strip()]
+
+    if not clean_items:
+        return ""
+
+    return '<ul class="amelie-toc">' + "".join(clean_items) + "</ul>"
