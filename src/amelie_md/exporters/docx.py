@@ -352,6 +352,40 @@ class DocxExporter:
 
         return getattr(obj, name, default)
 
+    def _add_hyperlink_run(self, paragraph: Any, text: str, url: str) -> None:
+        if not text:
+            return
+
+        part = paragraph.part
+        relationship_id = part.relate_to(
+            url,
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+            is_external=True,
+        )
+
+        hyperlink = OxmlElement("w:hyperlink")
+        hyperlink.set(qn("r:id"), relationship_id)
+
+        run_element = OxmlElement("w:r")
+        run_properties = OxmlElement("w:rPr")
+
+        color = OxmlElement("w:color")
+        color.set(qn("w:val"), "0563C1")
+        run_properties.append(color)
+
+        underline = OxmlElement("w:u")
+        underline.set(qn("w:val"), "single")
+        run_properties.append(underline)
+
+        run_element.append(run_properties)
+
+        text_element = OxmlElement("w:t")
+        text_element.text = text
+        run_element.append(text_element)
+
+        hyperlink.append(run_element)
+        paragraph._p.append(hyperlink)
+
     def _add_plain_text_runs(self, paragraph: Any, text: str) -> None:
         lines = str(text).splitlines()
 
@@ -366,6 +400,14 @@ class DocxExporter:
                 continue
 
             for inline_run in parse_inline(line):
+                if inline_run.link:
+                    self._add_hyperlink_run(
+                        paragraph,
+                        inline_run.text,
+                        inline_run.link,
+                    )
+                    continue
+
                 run = paragraph.add_run(inline_run.text)
                 self._apply_inline_style_spec(run)
 

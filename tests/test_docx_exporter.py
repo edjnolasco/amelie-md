@@ -22,7 +22,7 @@ def test_docx_exporter_creates_docx_with_core_elements(tmp_path: Path) -> None:
         blocks=[
             {"type": "heading", "level": 1, "text": "Main Title"},
             {"type": "heading", "level": 2, "text": "Section"},
-            {"type": "paragraph", "text": "This is a **bold** paragraph with *italic* and `code`."},
+            {"type": "paragraph", "text": "This is a **bold** paragraph with *italic*, `code` and [OpenAI](https://openai.com)."},
             {"type": "list_item", "text": "First item", "level": 0, "ordered": False},
             {"type": "list_item", "text": "Second item", "level": 0, "ordered": False},
             {
@@ -47,7 +47,7 @@ def test_docx_exporter_creates_docx_with_core_elements(tmp_path: Path) -> None:
     assert "Test Document" in paragraphs
     assert "Main Title" in paragraphs
     assert "Section" in paragraphs
-    assert "This is a bold paragraph with italic and code." in paragraphs
+    assert "This is a bold paragraph with italic, code and OpenAI." in paragraphs
     assert "First item" in paragraphs
     assert "Second item" in paragraphs
     assert 'print("hello")' in paragraphs
@@ -55,12 +55,16 @@ def test_docx_exporter_creates_docx_with_core_elements(tmp_path: Path) -> None:
     inline_paragraph = next(
         paragraph
         for paragraph in document.paragraphs
-        if "This is a bold paragraph with italic and code." in paragraph.text
+        if "This is a bold paragraph with italic, code and OpenAI." in paragraph.text
     )
 
     assert any(run.text == "bold" and run.bold for run in inline_paragraph.runs)
     assert any(run.text == "italic" and run.italic for run in inline_paragraph.runs)
     assert any(run.text == "code" for run in inline_paragraph.runs)
+    document_xml = inline_paragraph._p.xml
+    assert "w:hyperlink" in document_xml
+    assert "OpenAI" in document_xml
+
 
     assert len(document.tables) == 1
     assert document.tables[0].cell(0, 0).text == "Name"
