@@ -13,6 +13,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+from amelie_md.parsing.inline_parser import parse_inline
 
 from amelie_md.styles.docx import AcademicDocxStyle
 
@@ -361,9 +362,21 @@ class DocxExporter:
             if index > 0:
                 paragraph.add_run().add_break()
 
-            if line:
-                run = paragraph.add_run(line)
+            if not line:
+                continue
+
+            for inline_run in parse_inline(line):
+                run = paragraph.add_run(inline_run.text)
                 self._apply_inline_style_spec(run)
+
+                if inline_run.bold:
+                    run.bold = True
+
+                if inline_run.italic:
+                    run.italic = True
+
+                if inline_run.code:
+                    self._apply_code_run_style(run, block=False)
 
     def _configure_document(self, document: Document) -> None:
         section = document.sections[0]
