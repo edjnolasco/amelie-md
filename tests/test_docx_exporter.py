@@ -96,3 +96,54 @@ def test_docx_exporter_renders_admonition_block(tmp_path: Path) -> None:
 
     assert "Warning" in cell_text
     assert "Be careful with production data." in cell_text
+
+
+def test_docx_exporter_renders_definition_block(tmp_path: Path) -> None:
+    output_path = tmp_path / "definition.docx"
+
+    exporter = DocxExporter()
+
+    document_model = AmelieDocument(
+        blocks=[
+            {
+                "type": "definition",
+                "title": "Concepto clave",
+                "text": "A **definition** explains a concept precisely.",
+            }
+        ]
+    )
+
+    exporter.export_document(document_model, output_path)
+
+    document = Document(output_path)
+
+    assert len(document.tables) >= 1
+
+    cell_text = document.tables[0].cell(0, 0).text
+
+    assert "Concepto clave" in cell_text
+    assert "A definition explains a concept precisely." in cell_text
+
+
+def test_docx_exporter_renders_quote_block(tmp_path: Path) -> None:
+    output_path = tmp_path / "quote.docx"
+
+    exporter = DocxExporter()
+
+    document_model = AmelieDocument(
+        blocks=[
+            {
+                "type": "quote",
+                "title": "Autor",
+                "text": "Knowledge is structured meaning.",
+            }
+        ]
+    )
+
+    exporter.export_document(document_model, output_path)
+
+    document = Document(output_path)
+    paragraphs = "\\n".join(paragraph.text for paragraph in document.paragraphs)
+
+    assert "Knowledge is structured meaning." in paragraphs
+    assert "— Autor" in paragraphs

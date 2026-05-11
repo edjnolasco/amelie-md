@@ -162,6 +162,14 @@ class DocxExporter:
             self._render_admonition_block(document, block)
             return
 
+        if block_type == "definition":
+            self._render_definition_block(document, block)
+            return
+
+        if block_type == "quote":
+            self._render_quote_block(document, block)
+            return
+
         if block_type == "toc":
             self._add_toc(document)
             return
@@ -878,6 +886,69 @@ class DocxExporter:
             body_paragraph = cell.paragraphs[0]
 
         self._add_plain_text_runs(body_paragraph, text)
+
+        document.add_paragraph()
+
+    def _render_definition_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        title = str(self._value(block, "title", default="Definition")).strip()
+        text = str(self._value(block, "text", default="")).strip()
+
+        table = document.add_table(rows=1, cols=1)
+        table.style = "Table Grid"
+
+        cell = table.cell(0, 0)
+        self._set_cell_shading(cell, "F8FBFD")
+        self._set_cell_margins(
+            cell,
+            top=120,
+            bottom=120,
+            start=160,
+            end=160,
+        )
+
+        title_paragraph = cell.paragraphs[0]
+        title_run = title_paragraph.add_run(title or "Definition")
+        title_run.bold = True
+        title_run.font.color.rgb = RGBColor(31, 78, 121)
+        self._apply_inline_style_spec(title_run)
+
+        body_paragraph = cell.add_paragraph()
+        self._add_plain_text_runs(body_paragraph, text)
+
+        document.add_paragraph()
+
+    def _render_quote_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        text = str(self._value(block, "text", default="")).strip()
+        cite = str(self._value(block, "title", default="")).strip()
+
+        paragraph = document.add_paragraph(style="Normal")
+        paragraph.paragraph_format.left_indent = Inches(0.35)
+        paragraph.paragraph_format.right_indent = Inches(0.2)
+        paragraph.paragraph_format.space_before = Pt(6)
+        paragraph.paragraph_format.space_after = Pt(6)
+
+        self._add_plain_text_runs(paragraph, text)
+
+        for run in paragraph.runs:
+            run.italic = True
+
+        if cite:
+            cite_paragraph = document.add_paragraph(style="Normal")
+            cite_paragraph.paragraph_format.left_indent = Inches(0.35)
+            cite_paragraph.paragraph_format.space_before = Pt(0)
+            cite_paragraph.paragraph_format.space_after = Pt(6)
+
+            cite_run = cite_paragraph.add_run(f"— {cite}")
+            cite_run.bold = True
+            self._apply_inline_style_spec(cite_run)
 
         document.add_paragraph()
 
