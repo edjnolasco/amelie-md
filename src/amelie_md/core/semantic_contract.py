@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from amelie_md.core.semantic_types import (
+    ADMONITION_TYPE,
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+    QUOTE_TYPE,
+    SEMANTIC_INDEX_TYPE,
+)
+
 
 @dataclass(frozen=True)
 class SemanticBlockContract:
@@ -14,34 +22,34 @@ class SemanticBlockContract:
 
 
 SEMANTIC_BLOCK_CONTRACTS: dict[str, SemanticBlockContract] = {
-    "admonition": SemanticBlockContract(
-        block_type="admonition",
+    ADMONITION_TYPE: SemanticBlockContract(
+        block_type=ADMONITION_TYPE,
         required_fields=("type", "kind", "text"),
         optional_fields=("title",),
     ),
-    "definition": SemanticBlockContract(
-        block_type="definition",
+    DEFINITION_TYPE: SemanticBlockContract(
+        block_type=DEFINITION_TYPE,
         required_fields=("type", "title", "text"),
         optional_fields=("id", "kind", "number", "chapter", "label"),
         numbered=True,
         referenceable=True,
         indexable=True,
     ),
-    "figure": SemanticBlockContract(
-        block_type="figure",
+    FIGURE_TYPE: SemanticBlockContract(
+        block_type=FIGURE_TYPE,
         required_fields=("type", "title", "text"),
         optional_fields=("id", "kind", "number", "chapter", "label"),
         numbered=True,
         referenceable=True,
         indexable=True,
     ),
-    "quote": SemanticBlockContract(
-        block_type="quote",
+    QUOTE_TYPE: SemanticBlockContract(
+        block_type=QUOTE_TYPE,
         required_fields=("type", "text"),
         optional_fields=("title", "kind"),
     ),
-    "semantic_index": SemanticBlockContract(
-        block_type="semantic_index",
+    SEMANTIC_INDEX_TYPE: SemanticBlockContract(
+        block_type=SEMANTIC_INDEX_TYPE,
         required_fields=("type", "kind", "title", "items"),
         optional_fields=(),
     ),

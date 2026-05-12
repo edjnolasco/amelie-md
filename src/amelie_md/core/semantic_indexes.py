@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 
-INDEXABLE_TYPES = {"figure", "definition"}
+from amelie_md.core.semantic_types import INDEXABLE_SEMANTIC_TYPES
+
+INDEXABLE_TYPES = INDEXABLE_SEMANTIC_TYPES
 
 
 def build_semantic_index(blocks: list[Any], block_type: str) -> list[dict[str, str]]:

@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 
-NUMBERED_TYPES = {"definition", "figure"}
+from amelie_md.core.semantic_types import NUMBERED_SEMANTIC_TYPES
+
+NUMBERED_TYPES = NUMBERED_SEMANTIC_TYPES
 
 
 def apply_semantic_numbering(blocks: list[Any]) -> list[Any]:
