@@ -11,10 +11,7 @@ from markdown import Markdown
 from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
-from amelie_md.core.semantic_normalizer import normalize_semantic_blocks
-from amelie_md.core.semantic_numbering import apply_semantic_numbering
-from amelie_md.core.semantic_references import apply_semantic_references
-from amelie_md.core.semantic_indexes import inject_semantic_indexes
+from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
 from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
@@ -96,11 +93,12 @@ class AmelieRenderer:
 
     def render_document_to_html_string(self, document_model: Any) -> str:
         raw_blocks = list(getattr(document_model, "blocks", []))
-        semantic_blocks = normalize_semantic_blocks(raw_blocks)
-        numbered_blocks = apply_semantic_numbering(semantic_blocks)
-        referenced_blocks = apply_semantic_references(numbered_blocks, html_links=True)
-        indexed_blocks = inject_semantic_indexes(referenced_blocks)
-        blocks = self._sanitize_blocks(indexed_blocks)
+        prepared_blocks = prepare_semantic_blocks(
+            raw_blocks,
+            html_links=True,
+            inject_indexes=True,
+        )
+        blocks = self._sanitize_blocks(prepared_blocks)
 
         self._heading_numbers = []
         content_html = self._render_blocks(blocks)

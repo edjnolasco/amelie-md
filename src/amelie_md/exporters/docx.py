@@ -14,8 +14,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.core.semantic_numbering import apply_semantic_numbering
-from amelie_md.core.semantic_references import apply_semantic_references
+from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
 
 from amelie_md.styles.docx import AcademicDocxStyle
 
@@ -88,8 +87,10 @@ class DocxExporter:
             self._add_cover(document)
             self._configure_content_section_pagination(document)
 
-        blocks = apply_semantic_references(
-            apply_semantic_numbering(self._document_blocks(amelie_document))
+        blocks = prepare_semantic_blocks(
+            self._document_blocks(amelie_document),
+            html_links=False,
+            inject_indexes=True,
         )
 
         for block in blocks:
