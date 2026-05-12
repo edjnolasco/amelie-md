@@ -65,3 +65,32 @@ def test_render_document_parses_admonition_markers(tmp_path):
     assert "amelie-admonition-warning" in html
     assert "Warning" in html
     assert "<strong>safe</strong>" in html
+
+
+def test_render_document_resolves_semantic_references(tmp_path):
+    renderer = AmelieRenderer(
+        template_dir=Path("src/amelie_md/templates"),
+        style_path=Path("src/amelie_md/styles/academic.css"),
+    )
+
+    document = type(
+        "Doc",
+        (),
+        {
+            "blocks": [
+                {"type": "heading", "level": 1, "text": "Capítulo"},
+                {
+                    "type": "figure",
+                    "id": "arch",
+                    "title": "Arquitectura",
+                    "text": "Diagrama del sistema.",
+                },
+                {"type": "paragraph", "text": "Ver {{ref:arch}}."},
+            ]
+        },
+    )()
+
+    html = renderer.render_document_to_html_string(document)
+
+    assert "Figure 1.1" in html
+    assert "Ver Figure 1.1." in html

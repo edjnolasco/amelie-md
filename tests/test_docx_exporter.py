@@ -147,3 +147,29 @@ def test_docx_exporter_renders_quote_block(tmp_path: Path) -> None:
 
     assert "Knowledge is structured meaning." in paragraphs
     assert "— Autor" in paragraphs
+
+
+def test_docx_exporter_resolves_semantic_references(tmp_path: Path) -> None:
+    output_path = tmp_path / "references.docx"
+
+    exporter = DocxExporter()
+
+    document_model = AmelieDocument(
+        blocks=[
+            {"type": "heading", "level": 1, "text": "Capítulo"},
+            {
+                "type": "definition",
+                "id": "concept",
+                "title": "Concepto",
+                "text": "Texto de definición.",
+            },
+            {"type": "paragraph", "text": "Ver {{ref:concept}}."},
+        ]
+    )
+
+    exporter.export_document(document_model, output_path)
+
+    document = Document(output_path)
+    paragraphs = "\n".join(paragraph.text for paragraph in document.paragraphs)
+
+    assert "Ver Definition 1.1." in paragraphs
