@@ -179,12 +179,15 @@ def render_definition_block(
     render_inline,
 ) -> str:
     title = str(block.get("title", "Definition")).strip() or "Definition"
+    label = str(block.get("label", "")).strip()
     text = str(block.get("text", "")).strip()
     content = render_inline(text)
 
+    heading = f"{label}. {title}" if label else title
+
     return (
         '<div class="amelie-definition">'
-        f'<div class="amelie-definition-title">{escape(title)}</div>'
+        f'<div class="amelie-definition-title">{escape(heading)}</div>'
         f'<div class="amelie-definition-content">{content}</div>'
         "</div>"
     )
@@ -206,3 +209,24 @@ def render_quote_block(
         f"{cite_html}"
         "</blockquote>"
     )
+
+
+def render_figure_block(
+    block: dict,
+    render_inline,
+) -> str:
+    title = str(block.get("title", "")).strip()
+    label = str(block.get("label", "")).strip()
+    text = str(block.get("text", "")).strip()
+
+    content = render_inline(text) if text else ""
+    caption_text = title or "Figure"
+    caption = f"{label}. {caption_text}" if label else caption_text
+
+    return (
+        '<figure class="amelie-figure">'
+        f'<div class="amelie-figure-body">{content}</div>'
+        f'<figcaption class="amelie-figure-caption">{escape(caption)}</figcaption>'
+        "</figure>"
+    )
+
