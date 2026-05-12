@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from html import escape
+import re
 from typing import Any
 
 from amelie_md.core.inline import InlineRun
@@ -12,11 +13,35 @@ from amelie_md.core.inline import InlineRun
 InlineRenderer = Callable[[str], str]
 
 
+INTERNAL_LINK_PATTERN = re.compile(
+    r'<a href="#[A-Za-z0-9_.:-]+">[^<]+</a>'
+)
+
+
+def preserve_internal_links(text: str) -> str:
+    parts: list[str] = []
+    position = 0
+
+    for match in INTERNAL_LINK_PATTERN.finditer(text):
+        start, end = match.span()
+
+        if start > position:
+            parts.append(escape(text[position:start]))
+
+        parts.append(match.group(0))
+        position = end
+
+    if position < len(text):
+        parts.append(escape(text[position:]))
+
+    return "".join(parts)
+
+
 def render_inline_html(runs: list[InlineRun]) -> str:
     parts: list[str] = []
 
     for run in runs:
-        text = escape(run.text)
+        text = preserve_internal_links(run.text)
 
         if run.code:
             text = f"<code>{text}</code>"

@@ -16,7 +16,7 @@ from amelie_md.core.semantic_numbering import apply_semantic_numbering
 from amelie_md.core.semantic_references import apply_semantic_references
 from amelie_md.core.semantic_indexes import inject_semantic_indexes
 from amelie_md.parsing.inline_parser import parse_inline
-from amelie_md.renderers.components.html_blocks import render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
+from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
 
 
@@ -98,7 +98,7 @@ class AmelieRenderer:
         raw_blocks = list(getattr(document_model, "blocks", []))
         semantic_blocks = normalize_semantic_blocks(raw_blocks)
         numbered_blocks = apply_semantic_numbering(semantic_blocks)
-        referenced_blocks = apply_semantic_references(numbered_blocks)
+        referenced_blocks = apply_semantic_references(numbered_blocks, html_links=True)
         indexed_blocks = inject_semantic_indexes(referenced_blocks)
         blocks = self._sanitize_blocks(indexed_blocks)
 
@@ -228,6 +228,8 @@ class AmelieRenderer:
 
     def _render_inline_html(self, text: str) -> str:
         runs = parse_inline(text)
+        return render_inline_html(runs)
+
         parts: list[str] = []
 
         for run in runs:

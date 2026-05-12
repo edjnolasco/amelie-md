@@ -48,3 +48,15 @@ def test_apply_semantic_references():
     resolved = apply_semantic_references(blocks)
 
     assert resolved[1]["text"] == "See Figure 1.1."
+
+
+def test_resolve_references_as_html_links():
+    text = "See {{ref:arch}}."
+
+    resolved = resolve_references(
+        text,
+        {"arch": "Figure 1.1"},
+        html_links=True,
+    )
+
+    assert resolved == 'See <a href="#arch">Figure 1.1</a>.'

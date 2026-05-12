@@ -7,7 +7,11 @@ from typing import Any
 REF_PATTERN = re.compile(r"\{\{ref:([A-Za-z0-9_.:-]+)\}\}")
 
 
-def apply_semantic_references(blocks: list[Any]) -> list[Any]:
+def apply_semantic_references(
+    blocks: list[Any],
+    *,
+    html_links: bool = False,
+) -> list[Any]:
     reference_map = build_reference_map(blocks)
     resolved_blocks: list[Any] = []
 
@@ -22,7 +26,11 @@ def apply_semantic_references(blocks: list[Any]) -> list[Any]:
             value = clean_block.get(field)
 
             if isinstance(value, str):
-                clean_block[field] = resolve_references(value, reference_map)
+                clean_block[field] = resolve_references(
+                    value,
+                    reference_map,
+                    html_links=html_links,
+                )
 
         resolved_blocks.append(clean_block)
 
@@ -45,9 +53,22 @@ def build_reference_map(blocks: list[Any]) -> dict[str, str]:
     return references
 
 
-def resolve_references(text: str, reference_map: dict[str, str]) -> str:
+def resolve_references(
+    text: str,
+    reference_map: dict[str, str],
+    *,
+    html_links: bool = False,
+) -> str:
     def replace(match: re.Match[str]) -> str:
         identifier = match.group(1)
-        return reference_map.get(identifier, match.group(0))
+        label = reference_map.get(identifier)
+
+        if not label:
+            return match.group(0)
+
+        if html_links:
+            return f'<a href="#{identifier}">{label}</a>'
+
+        return label
 
     return REF_PATTERN.sub(replace, text)
