@@ -94,3 +94,32 @@ def test_render_document_resolves_semantic_references(tmp_path):
 
     assert "Figure 1.1" in html
     assert "Ver Figure 1.1." in html
+
+
+def test_render_document_injects_list_of_figures(tmp_path):
+    renderer = AmelieRenderer(
+        template_dir=Path("src/amelie_md/templates"),
+        style_path=Path("src/amelie_md/styles/academic.css"),
+    )
+
+    document = type(
+        "Doc",
+        (),
+        {
+            "blocks": [
+                {"type": "heading", "level": 1, "text": "Capítulo"},
+                {"type": "paragraph", "text": "[[LIST_OF_FIGURES]]"},
+                {
+                    "type": "figure",
+                    "id": "arch",
+                    "title": "Arquitectura",
+                    "text": "Diagrama.",
+                },
+            ]
+        },
+    )()
+
+    html = renderer.render_document_to_html_string(document)
+
+    assert "List of Figures" in html
+    assert "Figure 1.1. Arquitectura" in html

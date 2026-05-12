@@ -230,3 +230,34 @@ def render_figure_block(
         "</figure>"
     )
 
+
+
+def render_semantic_index_block(block: dict) -> str:
+    title = str(block.get("title", "Index")).strip() or "Index"
+    items = block.get("items", [])
+
+    clean_items: list[str] = []
+
+    if isinstance(items, list):
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            label = escape(str(item.get("label", "")).strip())
+            item_title = escape(str(item.get("title", "")).strip())
+
+            if not label and not item_title:
+                continue
+
+            text = f"{label}. {item_title}" if label and item_title else label or item_title
+            clean_items.append(f"<li>{text}</li>")
+
+    if not clean_items:
+        return ""
+
+    return (
+        '<section class="amelie-semantic-index">'
+        f'<h2 class="amelie-semantic-index-title">{escape(title)}</h2>'
+        f'<ul class="amelie-semantic-index-list">{"".join(clean_items)}</ul>'
+        "</section>"
+    )

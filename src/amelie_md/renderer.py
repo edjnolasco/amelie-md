@@ -14,6 +14,7 @@ from amelie_md.core.normalizer import normalize_headings
 from amelie_md.core.semantic_normalizer import normalize_semantic_blocks
 from amelie_md.core.semantic_numbering import apply_semantic_numbering
 from amelie_md.core.semantic_references import apply_semantic_references
+from amelie_md.core.semantic_indexes import inject_semantic_indexes
 from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
@@ -98,7 +99,8 @@ class AmelieRenderer:
         semantic_blocks = normalize_semantic_blocks(raw_blocks)
         numbered_blocks = apply_semantic_numbering(semantic_blocks)
         referenced_blocks = apply_semantic_references(numbered_blocks)
-        blocks = self._sanitize_blocks(referenced_blocks)
+        indexed_blocks = inject_semantic_indexes(referenced_blocks)
+        blocks = self._sanitize_blocks(indexed_blocks)
 
         self._heading_numbers = []
         content_html = self._render_blocks(blocks)
@@ -347,6 +349,19 @@ class AmelieRenderer:
                 clean_block["text"] = text
                 clean_block["kind"] = str(block.get("kind", "note")).strip() or "note"
                 clean_block["title"] = str(block.get("title", "")).strip()
+                clean_blocks.append(clean_block)
+                continue
+
+            if block_type == "semantic_index":
+                items = block.get("items", [])
+
+                if not isinstance(items, list):
+                    continue
+
+                clean_block = dict(block)
+                clean_block["kind"] = str(block.get("kind", "")).strip()
+                clean_block["title"] = str(block.get("title", "")).strip()
+                clean_block["items"] = items
                 clean_blocks.append(clean_block)
                 continue
 

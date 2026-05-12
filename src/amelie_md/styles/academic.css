@@ -299,3 +299,43 @@ ol li {
     font-style: normal;
     font-weight: 600;
 }
+
+
+.amelie-figure {
+    margin: 1.4rem 0;
+    padding: 1rem;
+    border: 1px solid #d0d7de;
+    background: #fbfbfb;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.amelie-figure-body {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.amelie-figure-caption {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+
+.amelie-semantic-index {
+    margin: 1.5rem 0;
+}
+
+.amelie-semantic-index-title {
+    font-size: 1.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.amelie-semantic-index-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.amelie-semantic-index-list li {
+    margin: 0.35rem 0;
+}

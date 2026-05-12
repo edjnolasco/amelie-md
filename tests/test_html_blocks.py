@@ -1,5 +1,5 @@
 from amelie_md.renderers.components.html_blocks import (
-    render_admonition_block, render_definition_block, render_quote_block,
+    render_admonition_block, render_definition_block, render_figure_block, render_quote_block, render_semantic_index_block,
     render_code_block,
     render_heading_block,
     render_list,
@@ -139,3 +139,38 @@ def test_render_quote_block():
     assert "amelie-quote" in html
     assert "Texto citado." in html
     assert "<cite>Autor</cite>" in html
+
+
+def test_render_figure_block():
+    html = render_figure_block(
+        {
+            "type": "figure",
+            "title": "Figura 1. Arquitectura",
+            "text": "Diagrama conceptual.",
+        },
+        lambda text: text,
+    )
+
+    assert "amelie-figure" in html
+    assert "Diagrama conceptual." in html
+    assert "Figura 1. Arquitectura" in html
+
+
+def test_render_semantic_index_block():
+    html = render_semantic_index_block(
+        {
+            "type": "semantic_index",
+            "title": "List of Figures",
+            "items": [
+                {
+                    "label": "Figure 1.1",
+                    "title": "Arquitectura",
+                    "id": "arch",
+                }
+            ],
+        }
+    )
+
+    assert "amelie-semantic-index" in html
+    assert "List of Figures" in html
+    assert "Figure 1.1. Arquitectura" in html

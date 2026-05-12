@@ -5,7 +5,9 @@ from amelie_md.renderers.components.html_blocks import (
     render_admonition_block,
     render_code_block,
     render_definition_block,
+    render_figure_block,
     render_quote_block,
+    render_semantic_index_block,
     render_paragraph,
 )
 from amelie_md.renderers.registry import RendererRegistry
@@ -64,6 +66,19 @@ def build_html_registry(
             block,
             render_inline,
         ),
+    )
+
+    registry.register(
+        "figure",
+        lambda block: render_figure_block(
+            block,
+            render_inline,
+        ),
+    )
+
+    registry.register(
+        "semantic_index",
+        lambda block: render_semantic_index_block(block),
     )
 
     return registry
