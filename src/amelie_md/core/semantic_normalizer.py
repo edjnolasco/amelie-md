@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 
 from typing import Any
 
@@ -30,7 +31,7 @@ def normalize_semantic_blocks(blocks: list[Any]) -> list[Any]:
             index += 1
             continue
 
-        kind, title = parse_admonition_marker(marker)
+        kind, title, identifier = parse_admonition_marker(marker)
         content_lines: list[str] = []
         index += 1
 
@@ -59,6 +60,7 @@ def normalize_semantic_blocks(blocks: list[Any]) -> list[Any]:
                 {
                     "type": semantic_block_type(kind),
                     "kind": kind,
+                    "id": identifier,
                     "title": title,
                     "text": content,
                 }
@@ -67,17 +69,35 @@ def normalize_semantic_blocks(blocks: list[Any]) -> list[Any]:
     return normalized_blocks
 
 
-def parse_admonition_marker(marker: str) -> tuple[str, str]:
-    parts = marker.split(maxsplit=1)
-    kind = parts[0].strip().lower() if parts else "note"
-    title = parts[1].strip() if len(parts) > 1 else kind.title()
+def parse_admonition_marker(marker: str) -> tuple[str, str, str]:
+    marker = marker.strip()
 
-    return kind or "note", title
+    if not marker:
+        return "note", "Note", ""
+
+    parts = marker.split(maxsplit=1)
+
+    kind = parts[0].strip().lower()
+    remaining = parts[1].strip() if len(parts) > 1 else ""
+
+    if kind in {"definition", "figure"}:
+        remaining_parts = remaining.split(maxsplit=1)
+
+        if (
+            len(remaining_parts) == 2
+            and re.fullmatch(r"[A-Za-z0-9]+(?:[-_.:][A-Za-z0-9]+)+", remaining_parts[0])
+        ):
+            identifier, title = remaining_parts
+            return kind, title.strip(), identifier.strip()
+
+        return kind, remaining.strip() or kind.title(), ""
+
+    return kind, remaining.strip() or kind.title(), ""
 
 
 
 def semantic_block_type(kind: str) -> str:
-    if kind in {"definition", "quote"}:
+    if kind in {"definition", "quote", "figure"}:
         return kind
 
     return "admonition"
