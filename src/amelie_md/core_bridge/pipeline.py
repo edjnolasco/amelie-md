@@ -5,12 +5,14 @@ from typing import Any
 
 from amelie_core.pipeline.document_pipeline import process_document
 
+from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
 from amelie_md.document import AmelieDocument
 
 
 FENCE_RE = re.compile(r"```(?P<lang>[a-zA-Z0-9_-]*)\n(?P<code>.*?)(?:\n```|$)", re.DOTALL)
 BULLET_RE = re.compile(r"^(?P<indent>\s*)[-*+]\s+(?P<text>.+)$")
 ORDERED_RE = re.compile(r"^(?P<indent>\s*)\d+(?:\.\d+)*\.?\s+(?P<text>.+)$")
+SEMANTIC_FENCE_RE = re.compile(r"^:::.+$")
 
 
 def process_markdown_with_core(
@@ -21,7 +23,7 @@ def process_markdown_with_core(
     Bridge between amelie-core and amelie-md.
 
     Converts the core document model into an AmelieDocument-compatible
-    block structure for v1.2 exporters.
+    block structure for v1.2+ exporters.
     """
 
     result = process_document(markdown_text, style_text)
@@ -34,7 +36,11 @@ def process_markdown_with_core(
     if core_document is None:
         raise ValueError("Core pipeline did not return a document.")
 
-    blocks = _core_document_to_blocks(core_document)
+    blocks = prepare_semantic_blocks(
+        _core_document_to_blocks(core_document),
+        html_links=False,
+        inject_indexes=True,
+    )
 
     return {
         "document": AmelieDocument(blocks=blocks),
@@ -118,7 +124,11 @@ def _markdown_chunk_to_blocks(chunk: str) -> list[dict[str, Any]]:
         if not paragraph_lines:
             return
 
-        text = " ".join(line.strip() for line in paragraph_lines if line.strip()).strip()
+        text = " ".join(
+            line.strip()
+            for line in paragraph_lines
+            if line.strip()
+        ).strip()
 
         if text:
             if text == "[[TOC]]":
@@ -147,6 +157,35 @@ def _markdown_chunk_to_blocks(chunk: str) -> list[dict[str, Any]]:
             table_rows, index = _consume_markdown_table(lines, index)
             if table_rows:
                 blocks.append({"type": "table", "rows": table_rows})
+            continue
+
+        if SEMANTIC_FENCE_RE.match(stripped):
+            flush_paragraph()
+
+            semantic_lines = [line]
+            index += 1
+
+            while index < len(lines):
+                semantic_line = lines[index]
+                semantic_lines.append(semantic_line)
+
+                if semantic_line.strip() == ":::":
+                    break
+
+                index += 1
+
+            for semantic_text in semantic_lines:
+                semantic_text = semantic_text.strip()
+
+                if semantic_text:
+                    blocks.append(
+                        {
+                            "type": "paragraph",
+                            "text": semantic_text,
+                        }
+                    )
+
+            index += 1
             continue
 
         bullet_match = BULLET_RE.match(line)
