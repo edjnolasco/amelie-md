@@ -13,6 +13,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+from amelie_md.parsing.inline_parser import parse_inline
+from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
 
 from amelie_md.styles.docx import AcademicDocxStyle
 
@@ -85,7 +87,11 @@ class DocxExporter:
             self._add_cover(document)
             self._configure_content_section_pagination(document)
 
-        blocks = self._document_blocks(amelie_document)
+        blocks = prepare_semantic_blocks(
+            self._document_blocks(amelie_document),
+            html_links=False,
+            inject_indexes=True,
+        )
 
         for block in blocks:
             self._render_block(document, block)
@@ -155,6 +161,18 @@ class DocxExporter:
 
         if block_type == "code":
             self._render_code_block(document, block)
+            return
+
+        if block_type == "admonition":
+            self._render_admonition_block(document, block)
+            return
+
+        if block_type == "definition":
+            self._render_definition_block(document, block)
+            return
+
+        if block_type == "quote":
+            self._render_quote_block(document, block)
             return
 
         if block_type == "toc":
@@ -351,6 +369,40 @@ class DocxExporter:
 
         return getattr(obj, name, default)
 
+    def _add_hyperlink_run(self, paragraph: Any, text: str, url: str) -> None:
+        if not text:
+            return
+
+        part = paragraph.part
+        relationship_id = part.relate_to(
+            url,
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+            is_external=True,
+        )
+
+        hyperlink = OxmlElement("w:hyperlink")
+        hyperlink.set(qn("r:id"), relationship_id)
+
+        run_element = OxmlElement("w:r")
+        run_properties = OxmlElement("w:rPr")
+
+        color = OxmlElement("w:color")
+        color.set(qn("w:val"), "0563C1")
+        run_properties.append(color)
+
+        underline = OxmlElement("w:u")
+        underline.set(qn("w:val"), "single")
+        run_properties.append(underline)
+
+        run_element.append(run_properties)
+
+        text_element = OxmlElement("w:t")
+        text_element.text = text
+        run_element.append(text_element)
+
+        hyperlink.append(run_element)
+        paragraph._p.append(hyperlink)
+
     def _add_plain_text_runs(self, paragraph: Any, text: str) -> None:
         lines = str(text).splitlines()
 
@@ -361,9 +413,29 @@ class DocxExporter:
             if index > 0:
                 paragraph.add_run().add_break()
 
-            if line:
-                run = paragraph.add_run(line)
+            if not line:
+                continue
+
+            for inline_run in parse_inline(line):
+                if inline_run.link:
+                    self._add_hyperlink_run(
+                        paragraph,
+                        inline_run.text,
+                        inline_run.link,
+                    )
+                    continue
+
+                run = paragraph.add_run(inline_run.text)
                 self._apply_inline_style_spec(run)
+
+                if inline_run.bold:
+                    run.bold = True
+
+                if inline_run.italic:
+                    run.italic = True
+
+                if inline_run.code:
+                    self._apply_code_run_style(run, block=False)
 
     def _configure_document(self, document: Document) -> None:
         section = document.sections[0]
@@ -771,6 +843,121 @@ class DocxExporter:
         numbering_properties.append(self._xml("w:numId", val=str(num_id)))
 
         paragraph_properties.append(numbering_properties)
+
+    def _render_admonition_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        kind = str(self._value(block, "kind", default="note")).strip().lower()
+        title = str(self._value(block, "title", default="")).strip()
+        text = str(self._value(block, "text", default="")).strip()
+
+        table = document.add_table(rows=1, cols=1)
+        table.style = "Table Grid"
+
+        cell = table.cell(0, 0)
+
+        fill_map = {
+            "note": "DCEAF7",
+            "warning": "FFF4E5",
+            "tip": "E7F6EC",
+            "important": "FDECEC",
+        }
+
+        fill = fill_map.get(kind, "DCEAF7")
+
+        self._set_cell_shading(cell, fill)
+        self._set_cell_margins(
+            cell,
+            top=120,
+            bottom=120,
+            start=160,
+            end=160,
+        )
+
+        if title:
+            title_paragraph = cell.paragraphs[0]
+            title_run = title_paragraph.add_run(title)
+
+            title_run.bold = True
+            title_run.font.size = Pt(11)
+
+            self._apply_inline_style_spec(title_run)
+
+            body_paragraph = cell.add_paragraph()
+
+        else:
+            body_paragraph = cell.paragraphs[0]
+
+        self._add_plain_text_runs(body_paragraph, text)
+
+        document.add_paragraph()
+
+    def _render_definition_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        title = str(self._value(block, "title", default="Definition")).strip()
+        label = str(self._value(block, "label", default="")).strip()
+        heading = f"{label}. {title}" if label else title
+        text = str(self._value(block, "text", default="")).strip()
+
+        table = document.add_table(rows=1, cols=1)
+        table.style = "Table Grid"
+
+        cell = table.cell(0, 0)
+        self._set_cell_shading(cell, "F8FBFD")
+        self._set_cell_margins(
+            cell,
+            top=120,
+            bottom=120,
+            start=160,
+            end=160,
+        )
+
+        title_paragraph = cell.paragraphs[0]
+        title_run = title_paragraph.add_run(heading or "Definition")
+        title_run.bold = True
+        title_run.font.color.rgb = RGBColor(31, 78, 121)
+        self._apply_inline_style_spec(title_run)
+
+        body_paragraph = cell.add_paragraph()
+        self._add_plain_text_runs(body_paragraph, text)
+
+        document.add_paragraph()
+
+    def _render_quote_block(
+        self,
+        document: Document,
+        block: Any,
+    ) -> None:
+        text = str(self._value(block, "text", default="")).strip()
+        cite = str(self._value(block, "title", default="")).strip()
+
+        paragraph = document.add_paragraph(style="Normal")
+        paragraph.paragraph_format.left_indent = Inches(0.35)
+        paragraph.paragraph_format.right_indent = Inches(0.2)
+        paragraph.paragraph_format.space_before = Pt(6)
+        paragraph.paragraph_format.space_after = Pt(6)
+
+        self._add_plain_text_runs(paragraph, text)
+
+        for run in paragraph.runs:
+            run.italic = True
+
+        if cite:
+            cite_paragraph = document.add_paragraph(style="Normal")
+            cite_paragraph.paragraph_format.left_indent = Inches(0.35)
+            cite_paragraph.paragraph_format.space_before = Pt(0)
+            cite_paragraph.paragraph_format.space_after = Pt(6)
+
+            cite_run = cite_paragraph.add_run(f"— {cite}")
+            cite_run.bold = True
+            self._apply_inline_style_spec(cite_run)
+
+        document.add_paragraph()
 
     def _add_toc(self, document: Document) -> None:
         paragraph = document.add_paragraph()

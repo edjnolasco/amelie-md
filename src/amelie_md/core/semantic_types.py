@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+
+ADMONITION_TYPE = "admonition"
+DEFINITION_TYPE = "definition"
+FIGURE_TYPE = "figure"
+QUOTE_TYPE = "quote"
+SEMANTIC_INDEX_TYPE = "semantic_index"
+
+SEMANTIC_BLOCK_TYPES = {
+    ADMONITION_TYPE,
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+    QUOTE_TYPE,
+    SEMANTIC_INDEX_TYPE,
+}
+
+NUMBERED_SEMANTIC_TYPES = {
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+}
+
+REFERENCEABLE_SEMANTIC_TYPES = {
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+}
+
+INDEXABLE_SEMANTIC_TYPES = {
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+}
+
+AUTHORING_SEMANTIC_TYPES = {
+    ADMONITION_TYPE,
+    DEFINITION_TYPE,
+    FIGURE_TYPE,
+    QUOTE_TYPE,
+    "note",
+    "warning",
+    "tip",
+    "important",
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,10 @@ from markdown import Markdown
 from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
+from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
+from amelie_md.parsing.inline_parser import parse_inline
+from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
+from amelie_md.renderers.html_registry import build_html_registry
 
 
 class AmelieRenderer:
@@ -21,6 +26,9 @@ class AmelieRenderer:
 
     v1.2+ pipeline:
     AmelieDocument.blocks -> HTML
+
+    v1.3+ enhancement:
+    Inline semantic rendering for paragraph, heading and list_item blocks.
     """
 
     def __init__(self, template_dir: Path, style_path: Path):
@@ -29,10 +37,17 @@ class AmelieRenderer:
         self.pygments_style_path = style_path.parent / "pygments.css"
         self._heading_numbers: list[int] = []
 
+        self.registry = build_html_registry(
+            render_inline=self._render_inline_html,
+            render_table=self._render_table,
+            escape_html=self._escape_html,
+        )
+
         self.env = Environment(
             loader=FileSystemLoader(self.template_dir),
             autoescape=select_autoescape(["html"]),
         )
+
 
     def _create_markdown_engine(self) -> Markdown:
         return Markdown(
@@ -77,7 +92,13 @@ class AmelieRenderer:
         return self.render_html(markdown_text)
 
     def render_document_to_html_string(self, document_model: Any) -> str:
-        blocks = self._sanitize_blocks(list(getattr(document_model, "blocks", [])))
+        raw_blocks = list(getattr(document_model, "blocks", []))
+        prepared_blocks = prepare_semantic_blocks(
+            raw_blocks,
+            html_links=True,
+            inject_indexes=True,
+        )
+        blocks = self._sanitize_blocks(prepared_blocks)
 
         self._heading_numbers = []
         content_html = self._render_blocks(blocks)
@@ -135,47 +156,37 @@ class AmelieRenderer:
 
             flush_list()
 
+            if self.registry.has(block_type):
+                renderer = self.registry.get(block_type)
+                rendered = renderer(block)
+
+                if rendered:
+                    html_parts.append(rendered)
+                    seen_content = True
+
+                continue
+
             if block_type == "heading":
                 level = min(max(int(block.get("level", 1)), 1), 6)
-                text = self._escape_html(str(block.get("text", "")).strip())
+                raw_text = str(block.get("text", "")).strip()
 
-                if not text:
+                if not raw_text:
                     continue
 
-                heading_text = text
+                rendered_text = self._render_inline_html(raw_text)
+                heading_text = rendered_text
+                heading_label = raw_text
 
                 if level > 1:
                     number = self._next_heading_number(level)
-                    heading_text = f"{number} {text}"
+                    heading_text = f"{number} {rendered_text}"
+                    heading_label = f"{number} {raw_text}"
 
-                anchor = self._slugify(heading_text)
+                anchor = self._slugify(heading_label)
+                heading_html = render_heading_block(level, heading_text, anchor)
 
-                html_parts.append(
-                    f'<h{level} id="{anchor}">{heading_text}</h{level}>'
-                )
-                seen_content = True
-
-            elif block_type == "paragraph":
-                text = self._escape_html(str(block.get("text", "")).strip())
-
-                if text:
-                    html_parts.append(f"<p>{text}</p>")
-                    seen_content = True
-
-            elif block_type == "code":
-                code = str(block.get("code", "")).rstrip()
-
-                if code:
-                    html_parts.append(
-                        f'<pre><code>{self._escape_html(code)}</code></pre>'
-                    )
-                    seen_content = True
-
-            elif block_type == "table":
-                table_html = self._render_table(block.get("rows", []))
-
-                if table_html:
-                    html_parts.append(table_html)
+                if heading_html:
+                    html_parts.append(heading_html)
                     seen_content = True
 
             elif block_type == "toc":
@@ -192,42 +203,51 @@ class AmelieRenderer:
             return ""
 
         ordered = bool(clean_items[0].get("ordered", False))
-        tag = "ol" if ordered else "ul"
 
-        parts = [f'<{tag} class="amelie-list">']
+        rendered_items: list[str] = []
 
         for item in clean_items:
-            text = self._escape_html(str(item.get("text", "")).strip())
+            raw_text = str(item.get("text", "")).strip()
 
-            if text:
-                parts.append(f"<li>{text}</li>")
+            item_html = render_list_item(
+                raw_text,
+                self._render_inline_html,
+            )
 
-        if len(parts) == 1:
-            return ""
+            if item_html:
+                rendered_items.append(item_html)
 
-        parts.append(f"</{tag}>")
-        return "\n".join(parts)
+        return render_list(rendered_items, ordered)
 
     def _render_table(self, rows: list[list[str]]) -> str:
         rows = self._sanitize_table_rows(rows)
 
-        if not rows:
-            return ""
+        return render_table, render_toc, render_toc_item(rows, self._escape_html)
 
-        html = ['<table class="amelie-table">']
+    def _render_inline_html(self, text: str) -> str:
+        runs = parse_inline(text)
+        return render_inline_html(runs)
 
-        for row_index, row in enumerate(rows):
-            html.append("<tr>")
-            tag = "th" if row_index == 0 else "td"
+        parts: list[str] = []
 
-            for cell in row:
-                value = self._escape_html(str(cell).strip())
-                html.append(f"<{tag}>{value}</{tag}>")
+        for run in runs:
+            value = escape(run.text)
 
-            html.append("</tr>")
+            if run.code:
+                value = f"<code>{value}</code>"
 
-        html.append("</table>")
-        return "\n".join(html)
+            if run.bold:
+                value = f"<strong>{value}</strong>"
+
+            if run.italic:
+                value = f"<em>{value}</em>"
+
+            if run.link:
+                value = f'<a href="{escape(run.link, quote=True)}">{value}</a>'
+
+            parts.append(value)
+
+        return "".join(parts)
 
     def _build_toc(self, blocks: list[dict[str, Any]]) -> str:
         items: list[str] = []
@@ -251,15 +271,17 @@ class AmelieRenderer:
             anchor = self._slugify(label)
 
             items.append(
-                f'<li class="toc-level-{level}">'
-                f'<a href="#{anchor}">{label}</a>'
-                f"</li>"
+                render_toc_item(
+                    level,
+                    label,
+                    anchor,
+                )
             )
 
         if not items:
             return ""
 
-        return '<ul class="amelie-toc">' + "".join(items) + "</ul>"
+        return render_toc(items)
 
     def _next_heading_number(self, level: int) -> str:
         index = max(level - 2, 0)
@@ -314,6 +336,32 @@ class AmelieRenderer:
 
                 clean_block = dict(block)
                 clean_block["rows"] = rows
+                clean_blocks.append(clean_block)
+                continue
+
+            if block_type == "admonition":
+                text = str(block.get("text", "")).strip()
+
+                if not text:
+                    continue
+
+                clean_block = dict(block)
+                clean_block["text"] = text
+                clean_block["kind"] = str(block.get("kind", "note")).strip() or "note"
+                clean_block["title"] = str(block.get("title", "")).strip()
+                clean_blocks.append(clean_block)
+                continue
+
+            if block_type == "semantic_index":
+                items = block.get("items", [])
+
+                if not isinstance(items, list):
+                    continue
+
+                clean_block = dict(block)
+                clean_block["kind"] = str(block.get("kind", "")).strip()
+                clean_block["title"] = str(block.get("title", "")).strip()
+                clean_block["items"] = items
                 clean_blocks.append(clean_block)
                 continue
 

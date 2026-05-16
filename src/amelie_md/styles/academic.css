@@ -242,3 +242,100 @@ ol li {
 .toc li {
     list-style: none;
 }
+
+.amelie-admonition {
+    border-left: 5px solid #1f4e79;
+    background: #f4f8fb;
+    padding: 0.9rem 1rem;
+    margin: 1.2rem 0;
+    border-radius: 6px;
+}
+
+.amelie-admonition-title {
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+}
+
+.amelie-admonition-warning {
+    border-left-color: #b54708;
+    background: #fff7ed;
+}
+
+.amelie-admonition-note {
+    border-left-color: #1f4e79;
+}
+
+.amelie-admonition-tip {
+    border-left-color: #027a48;
+    background: #ecfdf3;
+}
+
+
+.amelie-definition {
+    border: 1px solid #b7c9d6;
+    background: #f8fbfd;
+    padding: 0.9rem 1rem;
+    margin: 1.2rem 0;
+    border-radius: 6px;
+}
+
+.amelie-definition-title {
+    font-weight: 700;
+    color: #1f4e79;
+    margin-bottom: 0.45rem;
+}
+
+.amelie-quote {
+    border-left: 4px solid #6b7280;
+    padding: 0.8rem 1rem;
+    margin: 1.2rem 0;
+    background: #f9fafb;
+    font-style: italic;
+}
+
+.amelie-quote cite {
+    display: block;
+    margin-top: 0.5rem;
+    font-style: normal;
+    font-weight: 600;
+}
+
+
+.amelie-figure {
+    margin: 1.4rem 0;
+    padding: 1rem;
+    border: 1px solid #d0d7de;
+    background: #fbfbfb;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.amelie-figure-body {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.amelie-figure-caption {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+
+.amelie-semantic-index {
+    margin: 1.5rem 0;
+}
+
+.amelie-semantic-index-title {
+    font-size: 1.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.amelie-semantic-index-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.amelie-semantic-index-list li {
+    margin: 0.35rem 0;
+}
