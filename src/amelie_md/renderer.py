@@ -16,6 +16,10 @@ from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
 
+from amelie_md.renderers.components.html_blocks import (
+    render_semantic_definition,
+    render_semantic_figure,
+)
 
 class AmelieRenderer:
     """
@@ -417,3 +421,20 @@ class AmelieRenderer:
             "date": metadata.get("date") or "",
             "subtitle": metadata.get("subtitle") or "",
         }
+
+
+def render_semantic_html_block(block):
+    """
+    Semantic HTML dispatcher.
+    """
+
+    semantic_type = getattr(block, "semantic_type", None)
+
+    if semantic_type == "definition":
+        return render_semantic_definition(block)
+
+    if semantic_type == "figure":
+        return render_semantic_figure(block)
+
+    return None
+

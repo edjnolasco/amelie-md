@@ -286,3 +286,65 @@ def render_semantic_index_block(block: dict) -> str:
         f'<ul class="amelie-semantic-index-list">{"".join(clean_items)}</ul>'
         "</section>"
     )
+
+
+# ============================================================
+# HOTFIX v1.3.1 — Semantic HTML blocks
+# ============================================================
+
+
+
+def render_semantic_definition(block) -> str:
+    title = getattr(block, "title", None) or "Definition"
+    block_id = getattr(block, "identifier", None) or ""
+    content = getattr(block, "content", "") or ""
+
+    return f"""
+<section class="semantic-definition" id="{escape(block_id)}">
+  <div class="semantic-definition-title">{escape(title)}</div>
+  <div class="semantic-definition-body">{escape(content)}</div>
+</section>
+""".strip()
+
+
+def render_semantic_figure(block) -> str:
+    title = getattr(block, "title", None) or "Figure"
+    block_id = getattr(block, "identifier", None) or ""
+    content = getattr(block, "content", "") or ""
+
+    return f"""
+<figure class="semantic-figure" id="{escape(block_id)}">
+  <figcaption>{escape(title)}</figcaption>
+  <div class="semantic-figure-body">{escape(content)}</div>
+</figure>
+""".strip()
+
+
+def render_semantic_reference(
+    target: str,
+    label: str,
+) -> str:
+    return (
+        f'<a class="semantic-reference" '
+        f'href="#{escape(target)}">{escape(label)}</a>'
+    )
+
+
+def render_semantic_index(entries: list[tuple[str, str]]) -> str:
+    items = []
+
+    for target, label in entries:
+        items.append(
+            f'<li><a href="#{escape(target)}">{escape(label)}</a></li>'
+        )
+
+    joined = "\n".join(items)
+
+    return f"""
+<nav class="semantic-index">
+  <ul>
+    {joined}
+  </ul>
+</nav>
+""".strip()
+
