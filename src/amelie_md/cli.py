@@ -7,6 +7,7 @@ import typer
 from amelie_md.core_bridge.pipeline import process_markdown_with_core
 from amelie_md.exporters.docx import DocxExporter, DocxMetadata
 from amelie_md.exporters.pdf import PdfExporter
+from amelie_md.projects.project_builder import load_project
 from amelie_md.renderer import AmelieRenderer
 
 app = typer.Typer(
@@ -24,7 +25,7 @@ def main() -> None:
 
 @app.command()
 def build(
-    input_file: str = typer.Argument(..., help="Markdown file"),
+    input_file: str = typer.Argument(..., help="Markdown file or Amelie project directory"),
     to: str = typer.Option("html", help="Output format: html, pdf, docx or docx-pdf"),
     output: str | None = typer.Option(None, help="Output file or output directory for docx-pdf"),
     style: str = typer.Option(
@@ -41,26 +42,39 @@ def build(
     ),
 ) -> None:
     """
-    Build a technical document from Markdown into a target format.
+    Build a technical document from Markdown or an Amelie project directory.
     """
 
-    input_path = _validate_input_file(input_file)
+    input_path = Path(input_file)
     output_format = to.lower().strip()
-    style_name = style.lower().strip()
 
     if output_format not in {"html", "pdf", "docx", "docx-pdf"}:
         typer.echo("❌ Supported formats: html, pdf, docx, docx-pdf")
         raise typer.Exit(code=1)
 
+    project_mode = input_path.is_dir()
+    references_path: Path | None = None
+
+    if project_mode:
+        project = load_project(input_path)
+        markdown_text = project.markdown
+        style_name = project.config.theme.lower().strip()
+        references_path = project.references_path
+        base_url = project.project_dir
+        output_base_dir = project.project_dir / "output"
+        output_stem = "project"
+    else:
+        input_path = _validate_input_file(input_file)
+        markdown_text = input_path.read_text(encoding="utf-8")
+        style_name = style.lower().strip()
+        base_url = input_path.parent
+        output_base_dir = input_path.parent
+        output_stem = input_path.stem
+
     if style_name not in {"academic", "report", "readme"}:
         typer.echo("❌ Supported styles: academic, report, readme")
         raise typer.Exit(code=1)
 
-    markdown_text = input_path.read_text(encoding="utf-8")
-
-    # ---------------------------
-    # 🔥 NUEVO: Markdown → AmelieDocument
-    # ---------------------------
     result = process_markdown_with_core(markdown_text, instructions)
     document_model = result.get("document")
 
@@ -68,9 +82,6 @@ def build(
         typer.echo("❌ Failed to build document model from Markdown")
         raise typer.Exit(code=1)
 
-    # ---------------------------
-    # StyleSpec
-    # ---------------------------
     style_spec = None
     style_result = result.get("style")
 
@@ -84,15 +95,17 @@ def build(
             typer.echo(f"  {ambiguity.message}")
         raise typer.Exit(code=1)
 
-    # ---------------------------
-    # DOCX + PDF
-    # ---------------------------
+    renderer = _create_renderer(style_name)
+
+    if references_path:
+        renderer.citation_registry_path = references_path
+
     if output_format == "docx-pdf":
-        output_dir = Path(output) if output else input_path.parent
+        output_dir = Path(output) if output else output_base_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        docx_output = output_dir / f"{input_path.stem}.docx"
-        pdf_output = output_dir / f"{input_path.stem}.pdf"
+        docx_output = output_dir / f"{output_stem}.docx"
+        pdf_output = output_dir / f"{output_stem}.pdf"
 
         DocxExporter(
             metadata=DocxMetadata(
@@ -102,18 +115,17 @@ def build(
             ),
             style=style_name,
             style_spec=style_spec,
-        ).export_document(  # 🔥 CAMBIO CLAVE
+        ).export_document(
             document_model,
             docx_output,
         )
 
-        renderer = _create_renderer(style_name)
         html = renderer.render_document_to_html_string(document_model)
 
         PdfExporter().export(
             html=html,
             output_path=pdf_output,
-            base_url=input_path.parent,
+            base_url=base_url,
         )
 
         typer.echo(f"✅ Built DOCX: {docx_output}")
@@ -121,11 +133,13 @@ def build(
         typer.echo(f"ℹ️ Style: {style_name}")
         return
 
-    # ---------------------------
-    # DOCX
-    # ---------------------------
     if output_format == "docx":
-        output_path = Path(output) if output else input_path.with_suffix(".docx")
+        output_path = (
+            Path(output)
+            if output
+            else output_base_dir / f"{output_stem}.docx"
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         DocxExporter(
             metadata=DocxMetadata(
@@ -135,7 +149,7 @@ def build(
             ),
             style=style_name,
             style_spec=style_spec,
-        ).export_document(  # 🔥 CAMBIO CLAVE
+        ).export_document(
             document_model,
             output_path,
         )
@@ -144,25 +158,34 @@ def build(
         typer.echo(f"ℹ️ Style: {style_name}")
         return
 
-    # ---------------------------
-    # HTML / PDF (sin cambios)
-    # ---------------------------
-    renderer = _create_renderer(style_name)
-
     if output_format == "html":
-        output_path = Path(output) if output else input_path.with_suffix(".html")
-        renderer.render_file(input_path, output_path)
+        output_path = (
+            Path(output)
+            if output
+            else output_base_dir / f"{output_stem}.html"
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        html = renderer.render_document_to_html_string(document_model)
+        output_path.write_text(html, encoding="utf-8")
+
         typer.echo(f"✅ Built HTML: {output_path}")
         typer.echo(f"ℹ️ Style: {style_name}")
         return
 
-    output_path = Path(output) if output else input_path.with_suffix(".pdf")
+    output_path = (
+        Path(output)
+        if output
+        else output_base_dir / f"{output_stem}.pdf"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     html = renderer.render_document_to_html_string(document_model)
 
     PdfExporter().export(
         html=html,
         output_path=output_path,
-        base_url=input_path.parent,
+        base_url=base_url,
     )
 
     typer.echo(f"✅ Built PDF: {output_path}")
