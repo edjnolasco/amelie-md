@@ -55,6 +55,13 @@ def build(
     project_mode = input_path.is_dir()
     references_path: Path | None = None
 
+    project_title = title
+    project_author = author
+    project_date = date
+    project_subtitle = None
+    project_keywords: list[str] = []
+    project_description = ""
+
     if project_mode:
         project = load_project(input_path)
         markdown_text = project.markdown
@@ -63,6 +70,13 @@ def build(
         base_url = project.project_dir
         output_base_dir = project.project_dir / "output"
         output_stem = "project"
+
+        project_title = title or project.config.title
+        project_author = author or project.config.author
+        project_date = date or project.config.date
+        project_subtitle = project.config.subtitle
+        project_keywords = project.config.keywords
+        project_description = project.config.description
     else:
         input_path = _validate_input_file(input_file)
         markdown_text = input_path.read_text(encoding="utf-8")
@@ -109,9 +123,12 @@ def build(
 
         DocxExporter(
             metadata=DocxMetadata(
-                title=title,
-                author=author,
-                date=date,
+                title=project_title,
+                author=project_author,
+                date=project_date,
+                subtitle=project_subtitle,
+                keywords=project_keywords,
+                description=project_description,
             ),
             style=style_name,
             style_spec=style_spec,
@@ -143,9 +160,12 @@ def build(
 
         DocxExporter(
             metadata=DocxMetadata(
-                title=title,
-                author=author,
-                date=date,
+                title=project_title,
+                author=project_author,
+                date=project_date,
+                subtitle=project_subtitle,
+                keywords=project_keywords,
+                description=project_description,
             ),
             style=style_name,
             style_spec=style_spec,

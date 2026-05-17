@@ -1,0 +1,14 @@
+title = "Semantic Publishing with Amelie"
+author = "Edwin José Nolasco"
+date = "2026"
+subtitle = "Publishing Workspace Architecture"
+theme = "academic"
+
+keywords = [
+  "semantic publishing",
+  "docx",
+  "html",
+  "pdf"
+]
+
+description = "Project-based semantic publishing workspace."
