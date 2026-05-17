@@ -31,3 +31,24 @@ def test_render_bibliography_html():
     assert "semantic-bibliography" in html
     assert 'id="ref-vaswani2017"' in html
     assert "Attention Is All You Need" in html
+
+
+def test_render_bibliography_html_filters_cited_keys():
+    html = render_bibliography_html(
+        {
+            "unused": {
+                "authors": "Unused Author",
+                "year": "2020",
+                "title": "Unused Work",
+            },
+            "vaswani2017": {
+                "authors": "Vaswani et al.",
+                "year": "2017",
+                "title": "Attention Is All You Need",
+            },
+        },
+        cited_keys=["vaswani2017"],
+    )
+
+    assert "Attention Is All You Need" in html
+    assert "Unused Work" not in html

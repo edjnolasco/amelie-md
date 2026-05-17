@@ -26,15 +26,22 @@ def format_bibliography_entry(entry: dict[str, Any]) -> str:
 def render_bibliography_html(
     registry: dict[str, dict[str, Any]],
     *,
+    cited_keys: list[str] | None = None,
     title: str = "References",
 ) -> str:
     if not registry:
         return ""
 
+    selected_keys = cited_keys if cited_keys is not None else sorted(registry)
+
     items = []
 
-    for key in sorted(registry):
-        entry = registry[key]
+    for key in selected_keys:
+        entry = registry.get(key)
+
+        if not entry:
+            continue
+
         formatted = format_bibliography_entry(entry)
 
         items.append(
@@ -42,6 +49,9 @@ def render_bibliography_html(
             f"{escape(formatted)}"
             "</li>"
         )
+
+    if not items:
+        return ""
 
     joined = "\n".join(items)
 

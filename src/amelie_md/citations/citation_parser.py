@@ -9,6 +9,30 @@ from amelie_md.citations.citation_registry import format_author_year
 CITATION_PATTERN = re.compile(r"\[@([A-Za-z0-9_.:-]+)\]")
 
 
+def extract_citation_keys(text: str) -> list[str]:
+    return CITATION_PATTERN.findall(text)
+
+
+def collect_cited_keys(blocks: list[Any]) -> list[str]:
+    keys: list[str] = []
+
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+
+        for field in ("text", "title"):
+            value = block.get(field)
+
+            if not isinstance(value, str):
+                continue
+
+            for key in extract_citation_keys(value):
+                if key not in keys:
+                    keys.append(key)
+
+    return keys
+
+
 def resolve_citations(
     text: str,
     registry: dict[str, dict[str, Any]],

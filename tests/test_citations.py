@@ -52,3 +52,14 @@ def test_apply_citations_to_blocks():
     resolved = apply_citations_to_blocks(blocks, registry)
 
     assert resolved[0]["text"] == "Attention models are widely used (Vaswani et al., 2017)."
+
+
+def test_collect_cited_keys_preserves_order_and_uniqueness():
+    from amelie_md.citations.citation_parser import collect_cited_keys
+
+    blocks = [
+        {"type": "paragraph", "text": "First [@a]."},
+        {"type": "paragraph", "text": "Second [@b] and again [@a]."},
+    ]
+
+    assert collect_cited_keys(blocks) == ["a", "b"]

@@ -12,7 +12,7 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
-from amelie_md.citations.citation_parser import apply_citations_to_blocks
+from amelie_md.citations.citation_parser import apply_citations_to_blocks, collect_cited_keys
 from amelie_md.citations.citation_registry import load_citation_registry
 from amelie_md.citations.bibliography_renderer import render_bibliography_html
 from amelie_md.parsing.inline_parser import parse_inline
@@ -107,11 +107,19 @@ class AmelieRenderer:
             inject_indexes=True,
         )
 
-        citation_registry = load_citation_registry(self.citation_registry_path)
+        citation_registry = load_citation_registry(
+            self.citation_registry_path
+        )
+
+        cited_keys = collect_cited_keys(prepared_blocks)
+
         cited_blocks = apply_citations_to_blocks(
             prepared_blocks,
             citation_registry,
         )
+
+        self._current_citation_registry = citation_registry
+        self._current_cited_keys = cited_keys
 
         blocks = self._sanitize_blocks(cited_blocks)
 
@@ -163,7 +171,8 @@ class AmelieRenderer:
 
             if block_type == "paragraph" and block_text == "[[BIBLIOGRAPHY]]":
                 bibliography_html = render_bibliography_html(
-                    load_citation_registry(self.citation_registry_path)
+                    getattr(self, "_current_citation_registry", {}),
+                    cited_keys=getattr(self, "_current_cited_keys", []),
                 )
 
                 if bibliography_html:
