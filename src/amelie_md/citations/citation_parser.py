@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 import re
 from typing import Any
 
@@ -33,9 +34,20 @@ def collect_cited_keys(blocks: list[Any]) -> list[str]:
     return keys
 
 
+def render_citation_html(key: str, label: str) -> str:
+    return (
+        f'<a class="semantic-citation" '
+        f'href="#ref-{escape(key, quote=True)}">'
+        f"{escape(label)}"
+        f"</a>"
+    )
+
+
 def resolve_citations(
     text: str,
     registry: dict[str, dict[str, Any]],
+    *,
+    html_links: bool = False,
 ) -> str:
     def replace(match: re.Match[str]) -> str:
         key = match.group(1)
@@ -44,7 +56,12 @@ def resolve_citations(
         if not entry:
             return match.group(0)
 
-        return format_author_year(entry)
+        label = format_author_year(entry)
+
+        if html_links:
+            return render_citation_html(key, label)
+
+        return label
 
     return CITATION_PATTERN.sub(replace, text)
 
@@ -52,6 +69,8 @@ def resolve_citations(
 def apply_citations_to_blocks(
     blocks: list[Any],
     registry: dict[str, dict[str, Any]],
+    *,
+    html_links: bool = False,
 ) -> list[Any]:
     resolved_blocks: list[Any] = []
 
@@ -66,7 +85,11 @@ def apply_citations_to_blocks(
             value = clean_block.get(field)
 
             if isinstance(value, str):
-                clean_block[field] = resolve_citations(value, registry)
+                clean_block[field] = resolve_citations(
+                    value,
+                    registry,
+                    html_links=html_links,
+                )
 
         resolved_blocks.append(clean_block)
 

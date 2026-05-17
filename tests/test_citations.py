@@ -63,3 +63,23 @@ def test_collect_cited_keys_preserves_order_and_uniqueness():
     ]
 
     assert collect_cited_keys(blocks) == ["a", "b"]
+
+
+def test_resolve_citation_as_html_backlink():
+    registry = {
+        "vaswani2017": {
+            "authors": "Vaswani et al.",
+            "year": "2017",
+        }
+    }
+
+    resolved = resolve_citations(
+        "See [@vaswani2017].",
+        registry,
+        html_links=True,
+    )
+
+    assert (
+        resolved
+        == 'See <a class="semantic-citation" href="#ref-vaswani2017">(Vaswani et al., 2017)</a>.'
+    )

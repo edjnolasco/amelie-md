@@ -14,7 +14,7 @@ InlineRenderer = Callable[[str], str]
 
 
 INTERNAL_LINK_PATTERN = re.compile(
-    r'<a(?: class="semantic-reference")? href="#[A-Za-z0-9_.:-]+">[^<]+</a>'
+    r'<a(?: class="semantic-reference"| class="semantic-citation")? href="#[A-Za-z0-9_.:-]+">[^<]+</a>'
 )
 
 

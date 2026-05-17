@@ -116,6 +116,7 @@ class AmelieRenderer:
         cited_blocks = apply_citations_to_blocks(
             prepared_blocks,
             citation_registry,
+            html_links=True,
         )
 
         self._current_citation_registry = citation_registry
