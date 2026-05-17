@@ -12,6 +12,8 @@ from amelie_md.core.frontmatter import parse_frontmatter
 from amelie_md.core.metadata import infer_metadata
 from amelie_md.core.normalizer import normalize_headings
 from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
+from amelie_md.citations.citation_parser import apply_citations_to_blocks
+from amelie_md.citations.citation_registry import load_citation_registry
 from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
@@ -40,6 +42,7 @@ class AmelieRenderer:
         self.style_path = style_path
         self.pygments_style_path = style_path.parent / "pygments.css"
         self._heading_numbers: list[int] = []
+        self.citation_registry_path = Path("references.json")
 
         self.registry = build_html_registry(
             render_inline=self._render_inline_html,
@@ -102,7 +105,14 @@ class AmelieRenderer:
             html_links=True,
             inject_indexes=True,
         )
-        blocks = self._sanitize_blocks(prepared_blocks)
+
+        citation_registry = load_citation_registry(self.citation_registry_path)
+        cited_blocks = apply_citations_to_blocks(
+            prepared_blocks,
+            citation_registry,
+        )
+
+        blocks = self._sanitize_blocks(cited_blocks)
 
         self._heading_numbers = []
         content_html = self._render_blocks(blocks)
