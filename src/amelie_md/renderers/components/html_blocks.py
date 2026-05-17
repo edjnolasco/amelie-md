@@ -14,7 +14,7 @@ InlineRenderer = Callable[[str], str]
 
 
 INTERNAL_LINK_PATTERN = re.compile(
-    r'<a href="#[A-Za-z0-9_.:-]+">[^<]+</a>'
+    r'<a(?: class="semantic-reference"| class="semantic-citation")? href="#[A-Za-z0-9_.:-]+">[^<]+</a>'
 )
 
 
@@ -294,6 +294,13 @@ def render_semantic_index_block(block: dict) -> str:
 
 
 
+def _semantic_value(block, key: str, default=None):
+    if isinstance(block, dict):
+        return block.get(key, default)
+
+    return getattr(block, key, default)
+
+
 def render_semantic_definition(block) -> str:
     title = getattr(block, "title", None) or "Definition"
     block_id = getattr(block, "identifier", None) or ""
@@ -308,9 +315,16 @@ def render_semantic_definition(block) -> str:
 
 
 def render_semantic_figure(block) -> str:
-    title = getattr(block, "title", None) or "Figure"
-    block_id = getattr(block, "identifier", None) or ""
-    content = getattr(block, "content", "") or ""
+    title = _semantic_value(block, "title") or "Figure"
+    block_id = (
+        _semantic_value(block, "id")
+        or _semantic_value(block, "identifier")
+        or ""
+    )
+    content = (
+        _semantic_value(block, "text", "")
+        or _semantic_value(block, "content", "")
+    )
 
     return f"""
 <figure class="semantic-figure" id="{escape(block_id)}">

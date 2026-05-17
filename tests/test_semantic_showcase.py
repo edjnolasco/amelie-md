@@ -45,7 +45,7 @@ def test_semantic_showcase_html_render(tmp_path):
 
     assert "Definition 1.1" in html
     assert "Figure 1.1" in html
-    assert 'href="#semantic-block"' in html
+    assert 'class="semantic-reference" href="#semantic-block"' in html
     assert 'href="#pipeline"' in html
     assert "List of Figures" in html
     assert "List of Definitions" in html

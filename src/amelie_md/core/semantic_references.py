@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from amelie_md.renderers.components.html_blocks import render_semantic_reference
+
 
 REF_PATTERN = re.compile(r"\{\{ref:([A-Za-z0-9_.:-]+)\}\}")
 
@@ -67,7 +69,7 @@ def resolve_references(
             return match.group(0)
 
         if html_links:
-            return f'<a href="#{identifier}">{label}</a>'
+            return render_semantic_reference(identifier, label)
 
         return label
 

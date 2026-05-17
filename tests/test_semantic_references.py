@@ -59,4 +59,4 @@ def test_resolve_references_as_html_links():
         html_links=True,
     )
 
-    assert resolved == 'See <a href="#arch">Figure 1.1</a>.'
+    assert resolved == 'See <a class="semantic-reference" href="#arch">Figure 1.1</a>.'

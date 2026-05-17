@@ -1,0 +1,12 @@
+{
+  "knuth1984": {
+    "authors": "Knuth",
+    "year": "1984",
+    "title": "The TeXbook"
+  },
+  "vaswani2017": {
+    "authors": "Vaswani et al.",
+    "year": "2017",
+    "title": "Attention Is All You Need"
+  }
+}
