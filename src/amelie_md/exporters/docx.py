@@ -24,6 +24,12 @@ class DocxMetadata:
     title: str | None = None
     author: str | None = None
     date: str | None = None
+    subtitle: str | None = None
+    keywords: list[str] | None = None
+    description: str | None = None
+    subtitle: str | None = None
+    keywords: list[str] | None = None
+    description: str | None = None
 
 
 class DocxExporter:
@@ -628,10 +634,16 @@ class DocxExporter:
             return Inches(default)
 
     def _has_cover(self) -> bool:
-        return bool(self.metadata.title or self.metadata.author or self.metadata.date)
+        return bool(
+            self.metadata.title
+            or self.metadata.subtitle
+            or self.metadata.author
+            or self.metadata.date
+        )
 
     def _add_cover(self, document: Document) -> None:
         title = self.metadata.title or "Untitled Document"
+        subtitle = self.metadata.subtitle or ""
         author = self.metadata.author or ""
         document_date = self.metadata.date or date.today().isoformat()
 
@@ -647,7 +659,19 @@ class DocxExporter:
         if font_family:
             self._set_font_family(run.font, font_family)
 
-        document.add_paragraph("\n" * 2)
+        document.add_paragraph("\n")
+
+        if subtitle:
+            paragraph = document.add_paragraph()
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = paragraph.add_run(subtitle)
+            run.italic = True
+            run.font.size = Pt(16)
+
+            if font_family:
+                self._set_font_family(run.font, font_family)
+
+            document.add_paragraph("\n")
 
         if author:
             paragraph = document.add_paragraph()
