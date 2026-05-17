@@ -93,7 +93,7 @@ def test_render_document_resolves_semantic_references(tmp_path):
     html = renderer.render_document_to_html_string(document)
 
     assert "Figure 1.1" in html
-    assert 'Ver <a href="#arch">Figure 1.1</a>.' in html
+    assert 'Ver <a class="semantic-reference" href="#arch">Figure 1.1</a>.' in html
 
 
 def test_render_document_injects_list_of_figures(tmp_path):
@@ -150,4 +150,4 @@ def test_render_document_resolves_semantic_references_as_links(tmp_path):
 
     html = renderer.render_document_to_html_string(document)
 
-    assert '<a href="#arch">Figure 1.1</a>' in html
+    assert '<a class="semantic-reference" href="#arch">Figure 1.1</a>' in html

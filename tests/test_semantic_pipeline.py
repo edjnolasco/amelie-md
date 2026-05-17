@@ -21,7 +21,7 @@ def test_prepare_semantic_blocks_normalizes_numbers_references_and_indexes():
     assert prepared[1]["items"][0]["label"] == "Figure 1.1"
     assert prepared[2]["type"] == "figure"
     assert prepared[2]["label"] == "Figure 1.1"
-    assert prepared[3]["text"] == 'Ver <a href="#arch-main">Figure 1.1</a>.'
+    assert prepared[3]["text"] == 'Ver <a class="semantic-reference" href="#arch-main">Figure 1.1</a>.'
 
 
 def test_prepare_semantic_blocks_can_skip_index_injection():
