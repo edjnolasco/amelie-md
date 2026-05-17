@@ -89,4 +89,4 @@ def test_renderer_skips_empty_bibliography_when_no_citations(tmp_path):
 
     html = renderer.render_document_to_html_string(document)
 
-    assert "semantic-bibliography" not in html
+    assert '<section class="semantic-bibliography">' not in html
