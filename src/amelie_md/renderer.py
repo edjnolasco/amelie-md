@@ -14,6 +14,7 @@ from amelie_md.core.normalizer import normalize_headings
 from amelie_md.core.semantic_pipeline import prepare_semantic_blocks
 from amelie_md.citations.citation_parser import apply_citations_to_blocks
 from amelie_md.citations.citation_registry import load_citation_registry
+from amelie_md.citations.bibliography_renderer import render_bibliography_html
 from amelie_md.parsing.inline_parser import parse_inline
 from amelie_md.renderers.components.html_blocks import render_inline_html, render_heading_block, render_list, render_list_item, render_table, render_toc, render_toc_item
 from amelie_md.renderers.html_registry import build_html_registry
@@ -158,6 +159,19 @@ class AmelieRenderer:
 
         for block in blocks:
             block_type = block.get("type")
+            block_text = str(block.get("text", "")).strip()
+
+            if block_type == "paragraph" and block_text == "[[BIBLIOGRAPHY]]":
+                bibliography_html = render_bibliography_html(
+                    load_citation_registry(self.citation_registry_path)
+                )
+
+                if bibliography_html:
+                    flush_list()
+                    html_parts.append(bibliography_html)
+                    seen_content = True
+
+                continue
 
             if block_type == "list_item":
                 text = str(block.get("text", "")).strip()
